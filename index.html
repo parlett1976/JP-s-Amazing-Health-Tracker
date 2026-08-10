@@ -22,6 +22,10 @@
     --border:#e5e5ea;
     --amber-header:#c98a10;
     --tabbar-height:64px;
+    /* Height reserved for the floating Save action bar pinned above the tab
+       bar on the Today tab (see .save-bar). Kept as its own variable so the
+       Today tab's extra scroll padding and the bar's own box stay in sync. */
+    --savebar-height:70px;
     font-size:16px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -52,6 +56,12 @@
 
   .tab-content{display:none;padding:8px 14px 24px;max-width:640px;margin:0 auto;}
   .tab-content.active{display:block;}
+  /* Today is the only tab with a persistent floating action bar (.save-bar,
+     pinned above the tab bar -- see below). Its scrollable content needs
+     extra bottom padding on TOP of body's tabbar reserve so the last card
+     (Add Food) never sits underneath the floating Save bar. No other tab has
+     a bottom-pinned primary action, so none of them need this. */
+  #tab-today{padding-bottom:calc(var(--savebar-height) + 16px);}
   .page-header{padding:6px 2px 14px;}
   .page-header h1{font-size:1.9rem;font-weight:800;margin:0;}
   .page-header h1.amber{color:var(--amber-header);}
@@ -115,18 +125,51 @@
   .form-row select{flex:1;min-height:40px;border-radius:10px;border:1px solid var(--border);padding:0 10px;
     font-size:0.95rem;background:#fff;}
   .form-row input.autofilled{background:#fff3d6;border-color:#f0d38a;}
+  /* Free-food toggle autofill highlight. A checkbox switch can't take the
+     same background-tint treatment as a text input, so instead the whole
+     row gets a highlighted pill (matching the .autofilled tint colors used
+     everywhere else) plus an explicit "Auto" badge next to the label -- this
+     needs to be unmissable, since a silently-set Free toggle is exactly what
+     caused the original bug (an item silently excluded from calorie totals).
+     Negative margin matches the added horizontal padding so the row's
+     label/toggle don't visually shift versus the other un-highlighted rows. */
+  .form-row.free-autofilled{background:#fff3d6;border:1px solid #f0d38a;border-radius:10px;
+    margin:0 -10px;padding:8px 10px;}
+  .auto-flag{display:inline-block;background:#f0d38a;color:#6b4a06;font-size:0.68rem;
+    font-weight:700;padding:2px 8px;border-radius:8px;margin-left:8px;vertical-align:middle;}
 
-  .food-row{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;}
-  .food-row .top-line{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
-  .food-row .top-line input[type=text]{flex:1;font-weight:600;border:none;background:transparent;font-size:0.95rem;}
-  .food-row .del-btn{background:none;border:none;color:var(--danger);font-size:1.1rem;cursor:pointer;
-    min-width:44px;min-height:44px;}
-  .food-row .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;}
-  .food-row .grid label{font-size:0.68rem;color:var(--text-secondary);display:block;}
-  .food-row .grid input{width:100%;min-height:36px;border-radius:8px;border:1px solid var(--border);
-    padding:0 6px;font-size:0.88rem;}
-  .food-row .grid input.autofilled{background:#fff3d6;border-color:#f0d38a;}
-  .free-toggle-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
+  /* Compact single-line food log row: time, item name, qty, whichever macro
+     fields Settings has enabled, free-food toggle, delete -- all in one
+     horizontal strip. Fixed-width fields (time/qty/macros/toggle/delete)
+     never shrink (flex-shrink:0 via flex:0 0 <width>); the item-name field is
+     the only one that gives up space first (flex:1 1 auto + min-width so it
+     can shrink and ellipsis). If the fixed-width fields alone still don't fit
+     (e.g. all 4 macros enabled on a narrow phone), the row scrolls
+     horizontally rather than wrapping to a second line. */
+  .food-row{border:1px solid var(--border);border-radius:12px;padding:6px 8px;margin-bottom:8px;}
+  .food-row .line{display:flex;align-items:center;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:2px 0;}
+  .food-row .line::-webkit-scrollbar{display:none;}
+  .food-row input.fr-time{flex:0 0 74px;width:74px;min-height:38px;border-radius:8px;
+    border:1px solid var(--border);padding:0 4px;font-size:0.78rem;}
+  .food-row input.fr-item{flex:1 1 auto;min-width:44px;min-height:38px;border-radius:8px;
+    border:1px solid var(--border);padding:0 6px;font-size:0.9rem;font-weight:600;background:transparent;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .food-row input.fr-num{flex:0 0 42px;width:42px;min-height:38px;border-radius:8px;
+    border:1px solid var(--border);padding:0 2px;font-size:0.8rem;text-align:center;}
+  .food-row input.autofilled{background:#fff3d6;border-color:#f0d38a;}
+  .food-row .del-btn{flex:0 0 44px;background:none;border:none;color:var(--danger);font-size:1.1rem;
+    cursor:pointer;min-width:44px;min-height:44px;}
+  /* .fr-toggle keeps the same visual switch graphic but guarantees a 44x44
+     tap target (the earlier accessibility fix) via the label's own box,
+     independent of the smaller pill drawn inside it. Scoped to .food-row so
+     the shared .switch/.slider-track rules used elsewhere (Settings, Add
+     Food form) are untouched. */
+  .food-row .switch.fr-toggle{flex:0 0 44px;min-width:44px;min-height:44px;
+    display:inline-flex;align-items:center;justify-content:center;}
+  .food-row .switch.fr-toggle .slider-track{position:relative;inset:auto;width:34px;height:20px;}
+  .food-row .switch.fr-toggle .slider-track:before{height:14px;width:14px;left:3px;bottom:3px;}
+  .food-row .switch.fr-toggle input:checked + .slider-track:before{transform:translateX(14px);}
 
   .weight-inputs{display:flex;gap:10px;align-items:center;}
   .weight-inputs input{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--border);
@@ -167,6 +210,26 @@
     gap:2px;padding:8px 2px 6px;font-size:0.68rem;color:var(--text-secondary);cursor:pointer;min-height:52px;}
   .tabbar button .icon{font-size:1.25rem;}
   .tabbar button.active{color:var(--accent);}
+
+  /* Floating Save action bar (Today tab only). Pulled OUT of normal document
+     flow entirely and pinned directly above the tab bar so it is always
+     visible and always tappable without any scrolling -- this replaces the
+     old approach of a normal-flow .btn-primary at the bottom of the Today
+     tab's content plus body padding-bottom math, which on real iOS Safari
+     was only reachable during elastic overscroll and didn't reliably accept
+     taps there (the in-flow button and the fixed tab bar animate/composite
+     differently during the iOS rubber-band bounce, which can desync visual
+     position from the actual hit-test area). Both .tabbar and .save-bar are
+     direct children of <body> with no transformed/filtered ancestor between
+     them and the viewport, so this z-index comparison happens in the *same*
+     stacking context as the tab bar's -- 140 genuinely wins over the tab
+     bar's 100, not just by visual luck. */
+  .save-bar{position:fixed;left:0;right:0;
+    bottom:calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+    z-index:140;background:var(--card-bg);border-top:1px solid var(--border);
+    box-shadow:0 -2px 10px rgba(0,0,0,0.08);padding:11px 16px;display:none;}
+  .save-bar.visible{display:block;}
+  .save-bar .btn-primary{margin-bottom:0;}
 
   .empty-state{text-align:center;color:var(--text-secondary);padding:30px 10px;font-size:0.9rem;}
 </style>
@@ -219,8 +282,8 @@
       <datalist id="foodMemoryList"></datalist>
     </div>
     <div class="form-row"><label for="newQty">Qty</label><input type="number" id="newQty" value="1" min="0" step="0.5" oninput="handleQtyInput()"></div>
-    <div class="form-row"><label for="newFree">Free food</label>
-      <label class="switch"><input type="checkbox" id="newFree" aria-label="Free food"><span class="slider-track"></span></label>
+    <div class="form-row" id="newFreeRow"><label for="newFree">Free food<span class="auto-flag" id="newFreeAutoFlag" style="display:none;">Auto</span></label>
+      <label class="switch"><input type="checkbox" id="newFree" aria-label="Free food" onchange="markFreeTouched()"><span class="slider-track"></span></label>
     </div>
     <div class="form-row macro-field" data-macro="calories"><label for="newCalories">Calories</label><input type="number" id="newCalories" oninput="markTouched('calories')"></div>
     <div class="form-row macro-field" data-macro="carbs"><label for="newCarbs">Carbs (g)</label><input type="number" id="newCarbs" oninput="markTouched('carbs')"></div>
@@ -228,8 +291,6 @@
     <div class="form-row macro-field" data-macro="fat"><label for="newFat">Fat (g)</label><input type="number" id="newFat" oninput="markTouched('fat')"></div>
     <button class="btn-secondary btn-block" onclick="addFoodEntry()" style="margin-top:8px;">+ Add to log</button>
   </div>
-
-  <button class="btn-primary" onclick="saveToday()">Save</button>
 </div>
 
 <!-- ===================== TAB 2: HISTORY ===================== -->
@@ -356,6 +417,15 @@
     <button class="btn-secondary btn-block" id="fsaSyncBtn" onclick="fsaSync()">Save Backup File (Desktop browsers only)</button>
     <div class="hint-text">Uses the File System Access API where available (e.g. Chrome/Edge on desktop). Not available on iOS Safari.</div>
   </div>
+</div>
+
+<!-- Floating Save action bar: only shown while the Today tab is active
+     (toggled by switchTab()). Lives outside every .tab-content wrapper and
+     directly above the tab bar, in normal fixed-position sibling order, so
+     it is never nested inside anything that could establish a stray
+     containing block for it. -->
+<div class="save-bar visible" id="todaySaveBar">
+  <button class="btn-primary" onclick="saveToday()">Save</button>
 </div>
 
 <!-- Bottom tab bar -->
@@ -507,6 +577,11 @@ var currentReportRange = 14;
 var charts = { calorieBreakdown:null, totalCalories:null, weight:null, macro:null, fastingHours:null };
 var newItemMemMatch = null; // matched perUnit object for Add-food form
 var newTouched = { calories:false, carbs:false, protein:false, fat:false };
+// Mirrors newTouched but for the Free-food toggle: true once the user has
+// manually flipped it after a memory-match autofill set it, so the autofill
+// highlight (see setFreeAutofillHighlight) doesn't re-apply itself and the
+// manual value is understood to be a deliberate override, not stale autofill.
+var newFreeTouched = false;
 
 // True whenever `draft` has been edited (food add/edit/delete, weight, the
 // 2000-cal flag, or a past-day fast start/finish field) since the last time it
@@ -571,6 +646,9 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   var btns = document.querySelectorAll('.tabbar button');
   for(var j=0;j<btns.length;j++){ btns[j].classList.toggle('active', btns[j].getAttribute('data-tab')===name); }
+  // The floating Save bar only belongs to Today -- no other tab has a
+  // persistent bottom primary action, so it's hidden everywhere else.
+  document.getElementById('todaySaveBar').classList.toggle('visible', name === 'today');
   if(name==='today') renderToday();
   if(name==='history') renderHistory();
   if(name==='reports') renderReports();
@@ -1208,20 +1286,24 @@ function renderFoodLogList(){
   var html = '';
   draft.foodLog.forEach(function(entry, idx){
     var itemLabel = escapeAttr(entry.item) || 'this item';
+    // Single-line row: time, item name, qty, whichever macro fields are
+    // enabled in Settings, free-food toggle, delete. Fixed-width fields
+    // never shrink; the item-name field gives up space first (min-width:0
+    // equivalent via CSS min-width + flex-shrink), and the whole line
+    // scrolls horizontally as a last resort if it still doesn't fit -- see
+    // the .food-row .line rules.
     html += '<div class="food-row">' +
-      '<div class="top-line">' +
-        '<input type="time" value="'+(entry.time||'')+'" aria-label="Time for '+itemLabel+'" onchange="updateFoodField('+idx+',\'time\',this.value)" style="max-width:90px;">' +
-        '<input type="text" value="'+escapeAttr(entry.item)+'" aria-label="Food item name" onchange="updateFoodField('+idx+',\'item\',this.value)">' +
+      '<div class="line">' +
+        '<input type="time" class="fr-time" value="'+(entry.time||'')+'" aria-label="Time for '+itemLabel+'" onchange="updateFoodField('+idx+',\'time\',this.value)">' +
+        '<input type="text" class="fr-item" value="'+escapeAttr(entry.item)+'" title="'+escapeAttr(entry.item)+'" aria-label="Food item name" onchange="updateFoodField('+idx+',\'item\',this.value)">' +
+        '<input type="number" step="0.5" class="fr-num" value="'+entry.qty+'" placeholder="Qty" aria-label="Quantity for '+itemLabel+'" onchange="updateFoodField('+idx+',\'qty\',parseFloat(this.value)||0)">' +
+        (settings.trackCalories ? '<input type="number" class="fr-num" value="'+numOrEmpty(entry.calories)+'" placeholder="Cal" aria-label="Calories for '+itemLabel+'" onchange="updateFoodField('+idx+',\'calories\',parseFloat(this.value))">' : '') +
+        (settings.trackCarbs ? '<input type="number" class="fr-num" value="'+numOrEmpty(entry.carbs)+'" placeholder="Carb" aria-label="Carbs for '+itemLabel+'" onchange="updateFoodField('+idx+',\'carbs\',parseFloat(this.value))">' : '') +
+        (settings.trackProtein ? '<input type="number" class="fr-num" value="'+numOrEmpty(entry.protein)+'" placeholder="Prot" aria-label="Protein for '+itemLabel+'" onchange="updateFoodField('+idx+',\'protein\',parseFloat(this.value))">' : '') +
+        (settings.trackFat ? '<input type="number" class="fr-num" value="'+numOrEmpty(entry.fat)+'" placeholder="Fat" aria-label="Fat for '+itemLabel+'" onchange="updateFoodField('+idx+',\'fat\',parseFloat(this.value))">' : '') +
+        '<label class="switch fr-toggle" aria-label="Free food for '+itemLabel+'"><input type="checkbox" '+(entry.isFree?'checked':'')+' onchange="updateFoodField('+idx+',\'isFree\',this.checked)"><span class="slider-track"></span></label>' +
         '<button class="del-btn" aria-label="Delete '+itemLabel+'" onclick="deleteFoodRow('+idx+')">&#10005;</button>' +
       '</div>' +
-      '<div class="grid">' +
-        '<div><label>Qty</label><input type="number" step="0.5" value="'+entry.qty+'" aria-label="Quantity for '+itemLabel+'" onchange="updateFoodField('+idx+',\'qty\',parseFloat(this.value)||0)"></div>' +
-        (settings.trackCalories ? '<div><label>Cal</label><input type="number" value="'+numOrEmpty(entry.calories)+'" aria-label="Calories for '+itemLabel+'" onchange="updateFoodField('+idx+',\'calories\',parseFloat(this.value))"></div>' : '') +
-        (settings.trackCarbs ? '<div><label>Carbs</label><input type="number" value="'+numOrEmpty(entry.carbs)+'" aria-label="Carbs for '+itemLabel+'" onchange="updateFoodField('+idx+',\'carbs\',parseFloat(this.value))"></div>' : '') +
-        (settings.trackProtein ? '<div><label>Protein</label><input type="number" value="'+numOrEmpty(entry.protein)+'" aria-label="Protein for '+itemLabel+'" onchange="updateFoodField('+idx+',\'protein\',parseFloat(this.value))"></div>' : '') +
-        (settings.trackFat ? '<div><label>Fat</label><input type="number" value="'+numOrEmpty(entry.fat)+'" aria-label="Fat for '+itemLabel+'" onchange="updateFoodField('+idx+',\'fat\',parseFloat(this.value))"></div>' : '') +
-      '</div>' +
-      '<div class="free-toggle-row"><label class="switch"><input type="checkbox" '+(entry.isFree?'checked':'')+' aria-label="Free food for '+itemLabel+'" onchange="updateFoodField('+idx+',\'isFree\',this.checked)"><span class="slider-track"></span></label><span style="font-size:0.82rem;color:var(--text-secondary);">Free food</span></div>' +
     '</div>';
   });
   list.innerHTML = html;
@@ -1255,17 +1337,37 @@ function deleteFoodRow(idx){
 function resetAddForm(){
   newItemMemMatch = null;
   newTouched = {calories:false, carbs:false, protein:false, fat:false};
+  newFreeTouched = false;
   var now = new Date();
   document.getElementById('newTime').value = pad2(now.getHours())+':'+pad2(now.getMinutes());
   document.getElementById('newItem').value = '';
   document.getElementById('newQty').value = '1';
   document.getElementById('newFree').checked = false;
+  setFreeAutofillHighlight(false);
   ['newCalories','newCarbs','newProtein','newFat'].forEach(function(id){
     var el = document.getElementById(id);
     el.value = '';
     el.classList.remove('autofilled');
   });
   populateFoodMemoryDatalist();
+}
+// Toggles the visible "this was auto-set from memory" treatment on the
+// Free-food row (highlighted row background + "Auto" badge) -- the toggle
+// equivalent of the .autofilled class already used on the numeric inputs.
+function setFreeAutofillHighlight(on){
+  var row = document.getElementById('newFreeRow');
+  var flag = document.getElementById('newFreeAutoFlag');
+  if(row) row.classList.toggle('free-autofilled', !!on);
+  if(flag) flag.style.display = on ? '' : 'none';
+}
+// Called when the user manually flips the Free-food toggle. Mirrors
+// markTouched(field) for the numeric fields: marks the field as a deliberate
+// user override (so it won't be silently re-highlighted) and clears the
+// autofill highlight immediately, since it's no longer an unreviewed autofill
+// once the user has consciously acted on it.
+function markFreeTouched(){
+  newFreeTouched = true;
+  setFreeAutofillHighlight(false);
 }
 function populateFoodMemoryDatalist(){
   var dl = document.getElementById('foodMemoryList');
@@ -1285,7 +1387,14 @@ function handleItemInput(){
   if(match){
     newItemMemMatch = match.perUnit;
     newTouched = {calories:false, carbs:false, protein:false, fat:false};
+    // Free-food autofill must be VISIBLE, not silent: a food remembered as
+    // Free (even from a one-off past entry) silently re-checking Free here
+    // used to exclude it from all budget totals with nothing on screen
+    // telling the user. Now it's flagged the same way the numeric fields
+    // already are, so the user can see it happened and consciously undo it.
+    newFreeTouched = false;
     document.getElementById('newFree').checked = !!match.isFreeDefault;
+    setFreeAutofillHighlight(true);
     fields.forEach(function(f){
       var el = document.getElementById('new'+capitalize(f));
       var v = match.perUnit[f];
@@ -1298,9 +1407,20 @@ function handleItemInput(){
       }
     });
   } else {
+    // No memory match for the current text -- e.g. the user has edited the
+    // item name away from a previously-matched item to something new. Reset
+    // everything the previous match may have set: the Free toggle back to its
+    // resetAddForm() default (unchecked), the autofill highlight, and the
+    // macro fields back to empty, rather than leaving the previous match's
+    // stale Free/number state sitting in the form.
     newItemMemMatch = null;
+    newFreeTouched = false;
+    document.getElementById('newFree').checked = false;
+    setFreeAutofillHighlight(false);
     fields.forEach(function(f){
-      document.getElementById('new'+capitalize(f)).classList.remove('autofilled');
+      var el = document.getElementById('new'+capitalize(f));
+      el.value = '';
+      el.classList.remove('autofilled');
     });
   }
 }
