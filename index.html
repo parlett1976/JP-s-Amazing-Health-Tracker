@@ -29,7 +29,16 @@
     font-size:16px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+  /* overflow-x:hidden here is a page-level safety net (belt-and-braces on
+     top of the .card/.food-row containment fix below): even if some
+     descendant somewhere miscalculates its width and would otherwise paint
+     past its own box, the page itself can never grow a horizontal scrollbar
+     or let content bleed past the viewport edge -- this matters more now
+     that pinch-zoom is enabled (see the viewport meta tag), since zoomed-out
+     rendering is exactly where a stray wide element becomes visible/tappable
+     outside the intended layout instead of just being an invisible 1px
+     rounding error. */
+  html,body{margin:0;padding:0;height:100%;max-width:100%;overflow-x:hidden;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;}
   /* Reserve enough space below the scrolling content for the fixed bottom tab bar
      (--tabbar-height) plus its safe-area inset plus a bit of breathing room, so the
@@ -68,7 +77,7 @@
   .page-header .sub{color:var(--text-secondary);font-size:0.85rem;margin-top:2px;}
 
   .card{background:var(--card-bg);border-radius:16px;padding:16px;margin-bottom:14px;
-    box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);max-width:100%;overflow:hidden;}
   .card h3{margin:0 0 10px;font-size:1rem;font-weight:700;}
 
   .date-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
@@ -146,8 +155,21 @@
      can shrink and ellipsis). If the fixed-width fields alone still don't fit
      (e.g. all 4 macros enabled on a narrow phone), the row scrolls
      horizontally rather than wrapping to a second line. */
-  .food-row{border:1px solid var(--border);border-radius:12px;padding:6px 8px;margin-bottom:8px;}
-  .food-row .line{display:flex;align-items:center;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  /* max-width:100%+overflow:hidden here is the actual containment boundary:
+     without it, .food-row is just a plain block box with no clipping of its
+     own, so its child .line -- which can be legitimately wider than the row
+     once its fixed-width fields don't all fit -- was free to visually paint
+     past the row's (and therefore the card's) right edge instead of being
+     confined to the horizontal scroller .line sets up for itself. This was
+     invisible at normal 1x zoom (where .line's own overflow-x:auto still
+     LOOKS contained because nothing forces the paint to escape), but became
+     visible once the page was pinch-zoomed out, which is exactly the
+     "row bleeds past the card/page" bug -- the fix is containment on the
+     row/card, not on .line, so .line's own scroll-if-needed behavior (kept
+     below) is unaffected. */
+  .food-row{border:1px solid var(--border);border-radius:12px;padding:6px 8px;margin-bottom:8px;
+    max-width:100%;overflow:hidden;}
+  .food-row .line{display:flex;align-items:center;gap:5px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
     scrollbar-width:none;padding:2px 0;}
   .food-row .line::-webkit-scrollbar{display:none;}
   .food-row input.fr-time{flex:0 0 74px;width:74px;min-height:38px;border-radius:8px;
@@ -464,6 +486,21 @@ var FOODMEM_KEY = 'slimline_foodMemory_v1';
 var MILESTONES_KEY = 'slimline_milestones_v1';
 var WEEKLY_CELEBRATED_KEY = 'slimline_weeklyCelebrated_v1';
 var ACTIVE_FAST_KEY = 'slimline_activeFast_v1';
+// Continuously-updated backup of the CURRENT (unsaved) draft for whichever
+// day is being viewed. Root-cause fix for "I added food and the calorie
+// number reverted / the item vanished": `draft` used to live in memory only
+// and nothing was written to disk until the user explicitly tapped the
+// floating Save button. This app has no service worker (see the fasting
+// section notes below), so iOS Safari can and does reclaim/reload a
+// backgrounded tab -- including Home Screen web app instances -- at any
+// time, which wiped out `draft` completely and silently reverted the Today
+// tab to whatever was last actually Saved. Every food log add/edit/delete
+// (and every other draft edit) now mirrors `draft` here immediately via
+// markDirty() -> persistLiveDraft(), and it's restored on the next load
+// instead of unconditionally rebuilding a blank draft from daysData. It is
+// cleared once the draft is safely committed via Save (or intentionally
+// discarded), so it never resurrects genuinely-old data.
+var LIVEDRAFT_KEY = 'slimline_liveDraft_v1';
 
 var DEFAULT_SETTINGS = {
   weekStartDay: 1,
@@ -592,12 +629,40 @@ var newFreeTouched = false;
 // away from Today) behind a confirm() so an unsaved draft is never silently
 // discarded.
 var isDirty = false;
-function markDirty(){ isDirty = true; }
+function markDirty(){
+  isDirty = true;
+  persistLiveDraft();
+}
 // Returns true if it's OK to proceed with discarding the current draft
 // (either nothing unsaved, or the user confirmed leaving anyway).
 function confirmDiscardDraftIfDirty(){
   if(!isDirty) return true;
   return confirm('You have unsaved changes on this day. Leave without saving?');
+}
+
+// ---- Live-draft crash/reload recovery (see LIVEDRAFT_KEY above) ----
+function persistLiveDraft(){
+  saveJSON(LIVEDRAFT_KEY, { date: viewedDate, draft: draft });
+}
+function clearLiveDraft(){
+  localStorage.removeItem(LIVEDRAFT_KEY);
+}
+// Loads dstr's draft the normal way (fresh from daysData), UNLESS there's a
+// live-draft backup on disk for that same date, in which case that backup
+// -- which may hold edits (e.g. a food item) that were never reached by an
+// explicit Save -- wins instead. Always leaves isDirty/the live-draft key
+// consistent with whichever source was used.
+function loadDraftForDate(dstr){
+  var liveBackup = loadJSON(LIVEDRAFT_KEY, null);
+  if(liveBackup && liveBackup.date === dstr && liveBackup.draft){
+    draft = liveBackup.draft;
+    isDirty = true;
+    showBanner('Restored unsaved changes from your last session for ' + formatDisplayDate(dstr) + ' — remember to tap Save.', 'warning');
+    return;
+  }
+  draft = buildDraftFromDay(daysData[dstr] || null);
+  isDirty = false;
+  clearLiveDraft();
 }
 
 /* =========================================================================
@@ -1102,8 +1167,7 @@ function onDateNavInput(val){
 }
 function loadDay(dstr){
   viewedDate = dstr;
-  draft = buildDraftFromDay(daysData[dstr] || null);
-  isDirty = false; // fresh draft straight from persisted data -- nothing unsaved yet
+  loadDraftForDate(dstr); // fresh from daysData, unless a live-draft backup for dstr exists (see above)
   resetAddForm();
   renderToday();
 }
@@ -1250,16 +1314,16 @@ function renderWeightCard(){
 function onWeightStLbChange(){
   var stEl = document.getElementById('weightSt'), lbEl = document.getElementById('weightLbPart');
   var st = parseFloat(stEl.value), lb = parseFloat(lbEl.value);
-  markDirty();
-  if(isNaN(st) && isNaN(lb)){ draft.weightLb = null; return; }
+  if(isNaN(st) && isNaN(lb)){ draft.weightLb = null; markDirty(); return; }
   draft.weightLb = (isNaN(st)?0:st)*LB_PER_STONE + (isNaN(lb)?0:lb);
+  markDirty();
 }
 function onWeightSingleChange(){
   var el = document.getElementById('weightSingle');
   var v = parseFloat(el.value);
-  markDirty();
-  if(isNaN(v)){ draft.weightLb = null; return; }
+  if(isNaN(v)){ draft.weightLb = null; markDirty(); return; }
   draft.weightLb = (settings.weightUnit === 'kg') ? v / LB_PER_KG : v;
+  markDirty();
 }
 function clearWeight(){ draft.weightLb = null; markDirty(); renderWeightCard(); }
 
@@ -1559,6 +1623,7 @@ function saveToday(){
 
   draft = buildDraftFromDay(daysData[viewedDate]);
   isDirty = false; // just saved -- draft now matches what's persisted, nothing unsaved anymore
+  clearLiveDraft(); // the live-draft backup's job is done now that this is safely in daysData
   renderToday();
   showToast('Saved.');
 }
@@ -1605,7 +1670,7 @@ function deleteDay(d, ev){
   delete daysData[d];
   saveJSON(DAYS_KEY, daysData);
   recomputeMilestones(null);
-  if(viewedDate === d){ draft = buildDraftFromDay(null); isDirty = false; }
+  if(viewedDate === d){ draft = buildDraftFromDay(null); isDirty = false; clearLiveDraft(); }
   renderHistory();
 }
 
@@ -1787,6 +1852,7 @@ function clearAllData(){
   localStorage.removeItem(WEEKLY_CELEBRATED_KEY);
   localStorage.removeItem(ACTIVE_FAST_KEY);
   localStorage.removeItem('slimline_fastingNotify_v1'); // legacy key from the removed auto-detect fasting system
+  clearLiveDraft();
   initStorage();
   viewedDate = todayStr();
   draft = buildDraftFromDay(null);
@@ -1936,6 +2002,7 @@ function handleImportFile(ev){
     weeklyCelebrated = parsed.weeklyCelebrated || {};
     saveJSON(SETTINGS_KEY, settings); saveJSON(DAYS_KEY, daysData); saveJSON(FOODMEM_KEY, foodMemory);
     saveJSON(MILESTONES_KEY, milestones); saveJSON(WEEKLY_CELEBRATED_KEY, weeklyCelebrated);
+    clearLiveDraft(); // an imported backup replaces everything -- any pre-import unsaved draft is stale now
     viewedDate = todayStr();
     draft = buildDraftFromDay(daysData[viewedDate] || null);
     isDirty = false;
@@ -1972,9 +2039,18 @@ function fsaSync(){
    ========================================================================= */
 document.addEventListener('DOMContentLoaded', function(){
   initStorage();
-  viewedDate = todayStr();
-  draft = buildDraftFromDay(daysData[viewedDate] || null);
-  isDirty = false;
+  // Restore an unsaved draft left behind by a previous session (e.g. iOS
+  // backgrounding/reloading this tab before the user reached the floating
+  // Save button) instead of unconditionally starting from a blank slate --
+  // see loadDraftForDate()/LIVEDRAFT_KEY above. A leftover live draft can be
+  // for ANY date, not just today (the user may have been editing a past day
+  // via History when the reload happened), so open directly on whatever date
+  // it belongs to rather than forcing viewedDate to today first and only
+  // then checking -- that would silently discard a past-day live draft
+  // simply because its date no longer matches "today".
+  var liveBackup = loadJSON(LIVEDRAFT_KEY, null);
+  viewedDate = (liveBackup && liveBackup.date) ? liveBackup.date : todayStr();
+  loadDraftForDate(viewedDate);
   resetAddForm();
   renderToday();
   checkWeeklyCongrats();
