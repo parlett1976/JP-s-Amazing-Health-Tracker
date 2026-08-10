@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JP's Amazing Health Tracker">
+<meta name="theme-color" content="#0f9d8a">
+<title>JP's Amazing Health Tracker</title>
+<style>
+  :root{
+    --accent:#0f9d8a;
+    --accent-dark:#0b7d6f;
+    --danger:#e0453c;
+    --warning:#e2a213;
+    --success:#1fa855;
+    --bg:#f2f2f7;
+    --card-bg:#ffffff;
+    --text:#1c1c1e;
+    --text-secondary:#6c6c70;
+    --border:#e5e5ea;
+    --amber-header:#c98a10;
+    --tabbar-height:64px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;}
+  /* Reserve enough space below the scrolling content for the fixed bottom tab bar
+     (--tabbar-height) plus its safe-area inset plus a bit of breathing room, so the
+     last element in any tab (e.g. the Today Save button) never sits underneath it.
+     This is pure fixed-px + env() math -- it does not depend on viewport height, so
+     it behaves identically on a short desktop window and a tall phone screen. */
+  body{padding-bottom:calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));}
+  .app-topbar{position:sticky;top:0;z-index:50;background:rgba(242,242,247,0.92);backdrop-filter:blur(10px);
+    padding:8px 16px;border-bottom:1px solid var(--border);text-align:center;}
+  .app-topbar .brand{font-weight:700;color:var(--accent-dark);font-size:0.85rem;letter-spacing:0.02em;}
+  #bannerContainer{position:fixed;top:44px;left:0;right:0;z-index:200;display:flex;flex-direction:column;gap:6px;
+    padding:0 12px;pointer-events:none;}
+  .banner{pointer-events:auto;border-radius:14px;padding:12px 14px;box-shadow:0 4px 14px rgba(0,0,0,0.15);
+    display:flex;align-items:flex-start;gap:10px;font-size:0.92rem;line-height:1.3;animation:slideDown 0.25s ease;}
+  @keyframes slideDown{from{transform:translateY(-12px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .banner.success{background:#e5f8ec;color:#0f6b31;border:1px solid #b7e9c8;}
+  .banner.error{background:#fdeceb;color:#a5261d;border:1px solid #f6c3bf;}
+  .banner.info{background:#eaf6ff;color:#0b5c8a;border:1px solid #bfe3fa;}
+  .banner.warning{background:#fff6e0;color:#8a6410;border:1px solid #f5dfa0;}
+  .banner button.close{margin-left:auto;background:none;border:none;font-size:1rem;cursor:pointer;color:inherit;
+    opacity:0.6;line-height:1;padding:2px 4px;}
+  .toast{pointer-events:auto;background:#1c1c1e;color:#fff;border-radius:20px;padding:10px 18px;font-size:0.88rem;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);align-self:center;}
+
+  .tab-content{display:none;padding:8px 14px 24px;max-width:640px;margin:0 auto;}
+  .tab-content.active{display:block;}
+  .page-header{padding:6px 2px 14px;}
+  .page-header h1{font-size:1.9rem;font-weight:800;margin:0;}
+  .page-header h1.amber{color:var(--amber-header);}
+  .page-header .sub{color:var(--text-secondary);font-size:0.85rem;margin-top:2px;}
+
+  .card{background:var(--card-bg);border-radius:16px;padding:16px;margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+  .card h3{margin:0 0 10px;font-size:1rem;font-weight:700;}
+
+  .date-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .date-nav button{min-width:44px;min-height:44px;border-radius:12px;border:none;background:#eceef1;
+    font-size:1.1rem;cursor:pointer;}
+  .date-nav input[type=date]{flex:1;min-height:44px;border-radius:12px;border:1px solid var(--border);
+    padding:0 10px;font-size:0.95rem;background:#fff;}
+
+  .hero-card{text-align:center;padding:26px 16px;}
+  .hero-number{font-size:3.4rem;font-weight:800;line-height:1;color:var(--text);}
+  .hero-number.negative{color:var(--danger);}
+  .hero-label{color:var(--text-secondary);font-size:0.95rem;margin-top:4px;}
+  .hero-macros{display:flex;justify-content:space-around;flex-wrap:wrap;gap:10px;margin-top:6px;}
+  .hero-macros div{min-width:70px;}
+  .hero-macros .val{font-size:1.5rem;font-weight:700;}
+  .hero-macros .lbl{font-size:0.75rem;color:var(--text-secondary);}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:0.8rem;
+    font-weight:600;margin-top:10px;}
+  .badge .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .badge.GREEN{background:#e5f8ec;color:#0f6b31;} .badge.GREEN .dot{background:var(--success);}
+  .badge.AMBER{background:#fff6e0;color:#8a6410;} .badge.AMBER .dot{background:var(--warning);}
+  .badge.RED{background:#fdeceb;color:#a5261d;} .badge.RED .dot{background:var(--danger);}
+
+  .weekstrip{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+  .weekstrip .num{font-size:1.3rem;font-weight:700;}
+
+  .switch{position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider-track{position:absolute;cursor:pointer;inset:0;background:#dcdce0;border-radius:28px;transition:0.2s;}
+  .slider-track:before{content:"";position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:white;
+    border-radius:50%;transition:0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);}
+  .switch input:checked + .slider-track{background:var(--accent);}
+  .switch input:checked + .slider-track:before{transform:translateX(20px);}
+  .switch input:disabled + .slider-track{opacity:0.5;}
+
+  .row-flex{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;
+    border-bottom:1px solid var(--border);min-height:44px;}
+  .row-flex:last-child{border-bottom:none;}
+  .row-flex label{font-size:0.95rem;}
+
+  .btn-primary{background:var(--accent);color:#fff;border:none;border-radius:14px;padding:13px 18px;
+    font-size:1rem;font-weight:700;cursor:pointer;width:100%;min-height:48px;margin-bottom:10px;}
+  .btn-primary:active{background:var(--accent-dark);}
+  .btn-secondary{background:#eceef1;color:var(--text);border:none;border-radius:14px;padding:12px 16px;
+    font-size:0.95rem;font-weight:600;cursor:pointer;min-height:44px;}
+  .btn-danger{background:#fdeceb;color:var(--danger);border:none;border-radius:14px;padding:12px 16px;
+    font-size:0.95rem;font-weight:700;cursor:pointer;min-height:44px;width:100%;}
+  .btn-block{width:100%;margin-bottom:10px;}
+
+  .form-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;}
+  .form-row label{font-size:0.9rem;color:var(--text-secondary);min-width:90px;}
+  .form-row input[type=text],.form-row input[type=number],.form-row input[type=time],
+  .form-row select{flex:1;min-height:40px;border-radius:10px;border:1px solid var(--border);padding:0 10px;
+    font-size:0.95rem;background:#fff;}
+  .form-row input.autofilled{background:#fff3d6;border-color:#f0d38a;}
+
+  .food-row{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;}
+  .food-row .top-line{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+  .food-row .top-line input[type=text]{flex:1;font-weight:600;border:none;background:transparent;font-size:0.95rem;}
+  .food-row .del-btn{background:none;border:none;color:var(--danger);font-size:1.1rem;cursor:pointer;
+    min-width:44px;min-height:44px;}
+  .food-row .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;}
+  .food-row .grid label{font-size:0.68rem;color:var(--text-secondary);display:block;}
+  .food-row .grid input{width:100%;min-height:36px;border-radius:8px;border:1px solid var(--border);
+    padding:0 6px;font-size:0.88rem;}
+  .food-row .grid input.autofilled{background:#fff3d6;border-color:#f0d38a;}
+  .free-toggle-row{display:flex;align-items:center;gap:8px;margin-top:6px;}
+
+  .weight-inputs{display:flex;gap:10px;align-items:center;}
+  .weight-inputs input{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--border);
+    padding:0 10px;font-size:1rem;text-align:center;}
+  .weight-inputs .unit-lbl{font-size:0.8rem;color:var(--text-secondary);}
+
+  .fasting-state{font-weight:700;font-size:1.05rem;}
+  .fasting-state.fasting{color:var(--danger);}
+  .fasting-state.open{color:var(--success);}
+  .fasting-state.neutral{color:var(--text-secondary);}
+
+  .list .item-row{background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  .list .item-row .left .date{font-weight:700;}
+  .list .item-row .left .meta{font-size:0.78rem;color:var(--text-secondary);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;}
+  .list .item-row .trash{background:none;border:none;color:var(--danger);font-size:1.1rem;padding:8px;min-width:40px;}
+  .mini-badge{padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;}
+  .mini-badge.GREEN{background:#e5f8ec;color:#0f6b31;}
+  .mini-badge.AMBER{background:#fff6e0;color:#8a6410;}
+  .mini-badge.RED{background:#fdeceb;color:#a5261d;}
+  .mini-badge.flag{background:#eaf6ff;color:#0b5c8a;}
+
+  .segmented{display:flex;background:#eceef1;border-radius:12px;padding:3px;margin-bottom:14px;}
+  .segmented button{flex:1;border:none;background:transparent;padding:8px 4px;border-radius:10px;font-size:0.85rem;
+    font-weight:600;cursor:pointer;color:var(--text-secondary);}
+  .segmented button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+
+  canvas{max-width:100%;}
+  .chart-wrap{position:relative;height:220px;margin-top:6px;}
+
+  .warning-text{background:#fff6e0;color:#8a6410;border-radius:12px;padding:10px 12px;font-size:0.85rem;margin-bottom:10px;}
+  .hint-text{color:var(--text-secondary);font-size:0.8rem;margin-top:6px;line-height:1.4;}
+
+  .tabbar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,0.96);
+    backdrop-filter:blur(10px);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);
+    z-index:100;min-height:var(--tabbar-height);}
+  .tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;
+    gap:2px;padding:8px 2px 6px;font-size:0.68rem;color:var(--text-secondary);cursor:pointer;min-height:52px;}
+  .tabbar button .icon{font-size:1.25rem;}
+  .tabbar button.active{color:var(--accent);}
+
+  .empty-state{text-align:center;color:var(--text-secondary);padding:30px 10px;font-size:0.9rem;}
+</style>
+</head>
+<body>
+
+<div class="app-topbar"><span class="brand">JP's Amazing Health Tracker</span></div>
+<div id="bannerContainer" aria-live="polite" aria-atomic="false"></div>
+
+<!-- ===================== TAB 1: TODAY ===================== -->
+<div id="tab-today" class="tab-content active">
+  <header class="page-header">
+    <h1 id="todayHeaderTitle">Today</h1>
+    <div class="sub" id="todayHeaderSub"></div>
+  </header>
+
+  <div class="card">
+    <div id="dateNavDayLabel" style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;"></div>
+    <div class="date-nav">
+      <button onclick="navDay(-1)" aria-label="Previous day">&#9664;</button>
+      <input type="date" id="dateNavInput" aria-label="Select date" onchange="onDateNavInput(this.value)">
+      <button onclick="navDay(1)" aria-label="Next day">&#9654;</button>
+    </div>
+  </div>
+
+  <div class="card hero-card" id="heroCard"></div>
+
+  <div class="card weekstrip" id="weekStripCard"></div>
+
+  <div class="card" id="flagCard"></div>
+
+  <div class="card" id="fastingCard"></div>
+
+  <div class="card" id="weightCard">
+    <h3>Weight</h3>
+    <div id="weightInputs"></div>
+  </div>
+
+  <div class="card" id="foodLogCard">
+    <h3>Food Log</h3>
+    <div id="foodLogList"></div>
+    <div class="empty-state" id="foodLogEmpty" style="display:none;">No food logged for this day yet.</div>
+  </div>
+
+  <div class="card" id="addFoodCard">
+    <h3>Add Food</h3>
+    <div class="form-row"><label for="newTime">Time</label><input type="time" id="newTime"></div>
+    <div class="form-row"><label for="newItem">Item</label>
+      <input type="text" id="newItem" list="foodMemoryList" oninput="handleItemInput()">
+      <datalist id="foodMemoryList"></datalist>
+    </div>
+    <div class="form-row"><label for="newQty">Qty</label><input type="number" id="newQty" value="1" min="0" step="0.5" oninput="handleQtyInput()"></div>
+    <div class="form-row"><label for="newFree">Free food</label>
+      <label class="switch"><input type="checkbox" id="newFree" aria-label="Free food"><span class="slider-track"></span></label>
+    </div>
+    <div class="form-row macro-field" data-macro="calories"><label for="newCalories">Calories</label><input type="number" id="newCalories" oninput="markTouched('calories')"></div>
+    <div class="form-row macro-field" data-macro="carbs"><label for="newCarbs">Carbs (g)</label><input type="number" id="newCarbs" oninput="markTouched('carbs')"></div>
+    <div class="form-row macro-field" data-macro="protein"><label for="newProtein">Protein (g)</label><input type="number" id="newProtein" oninput="markTouched('protein')"></div>
+    <div class="form-row macro-field" data-macro="fat"><label for="newFat">Fat (g)</label><input type="number" id="newFat" oninput="markTouched('fat')"></div>
+    <button class="btn-secondary btn-block" onclick="addFoodEntry()" style="margin-top:8px;">+ Add to log</button>
+  </div>
+
+  <button class="btn-primary" onclick="saveToday()">Save</button>
+</div>
+
+<!-- ===================== TAB 2: HISTORY ===================== -->
+<div id="tab-history" class="tab-content">
+  <header class="page-header"><h1>History</h1></header>
+  <div class="list" id="historyList"></div>
+  <div class="empty-state" id="historyEmpty" style="display:none;">No days saved yet. Log something on the Today tab.</div>
+</div>
+
+<!-- ===================== TAB 3: REPORTS ===================== -->
+<div id="tab-reports" class="tab-content">
+  <header class="page-header"><h1>Reports</h1></header>
+  <div class="segmented" id="rangeSegmented">
+    <button data-range="14" class="active" onclick="setReportRange(14)">14d</button>
+    <button data-range="30" onclick="setReportRange(30)">30d</button>
+    <button data-range="90" onclick="setReportRange(90)">90d</button>
+    <button data-range="all" onclick="setReportRange('all')">All</button>
+  </div>
+
+  <div class="empty-state" id="chartsUnavailable" style="display:none;">Charts unavailable &mdash; check your internet connection and reopen the app.</div>
+
+  <div class="card" id="calorieBreakdownChartCard">
+    <h3>Calorie Breakdown</h3>
+    <div class="chart-wrap"><canvas id="calorieBreakdownChart"></canvas></div>
+  </div>
+
+  <div class="card" id="totalCaloriesChartCard">
+    <h3>Total Calories</h3>
+    <div class="chart-wrap"><canvas id="totalCaloriesChart"></canvas></div>
+  </div>
+
+  <div class="card" id="weightChartCard">
+    <h3>Weight Trend</h3>
+    <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+  </div>
+
+  <div class="card" id="macroChartCard">
+    <h3>Macro Trends</h3>
+    <div class="chart-wrap"><canvas id="macroChart"></canvas></div>
+  </div>
+
+  <div class="card" id="fastingHoursChartCard">
+    <h3>Fasting Hours</h3>
+    <div class="chart-wrap"><canvas id="fastingHoursChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ===================== TAB 4: SETTINGS ===================== -->
+<div id="tab-settings" class="tab-content">
+  <header class="page-header"><h1>Settings</h1></header>
+
+  <div class="card">
+    <h3>What to Track</h3>
+    <div id="allOffWarning" class="warning-text" style="display:none;">All nutrient tracking is off. The Food Log will still work, but no numeric fields will show.</div>
+    <div class="row-flex"><label for="settingTrackWeight">Track Weight</label>
+      <label class="switch"><input type="checkbox" id="settingTrackWeight" aria-label="Track Weight" onchange="toggleSetting('trackWeight',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="row-flex"><label for="settingTrackCalories">Track Calories</label>
+      <label class="switch"><input type="checkbox" id="settingTrackCalories" aria-label="Track Calories" onchange="toggleSetting('trackCalories',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="row-flex"><label for="settingTrackCarbs">Track Carbs</label>
+      <label class="switch"><input type="checkbox" id="settingTrackCarbs" aria-label="Track Carbs" onchange="toggleSetting('trackCarbs',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="row-flex"><label for="settingTrackProtein">Track Protein</label>
+      <label class="switch"><input type="checkbox" id="settingTrackProtein" aria-label="Track Protein" onchange="toggleSetting('trackProtein',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="row-flex"><label for="settingTrackFat">Track Fat</label>
+      <label class="switch"><input type="checkbox" id="settingTrackFat" aria-label="Track Fat" onchange="toggleSetting('trackFat',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="row-flex"><label for="settingTrackFasting">Track Fasting</label>
+      <label class="switch"><input type="checkbox" id="settingTrackFasting" aria-label="Track Fasting" onchange="toggleSetting('trackFasting',this.checked)"><span class="slider-track"></span></label></div>
+    <div class="hint-text">Calorie budgeting follows the Slimlines plan rules: a 500&nbsp;calorie/day pooled allowance plus one 2000&nbsp;calorie day per week.</div>
+  </div>
+
+  <div class="card">
+    <h3>Preferences</h3>
+    <div class="form-row"><label for="settingWeekStart">Week starts</label>
+      <select id="settingWeekStart" onchange="toggleSetting('weekStartDay',parseInt(this.value,10))">
+        <option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option>
+        <option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option>
+        <option value="6">Saturday</option>
+      </select>
+    </div>
+    <div class="form-row"><label for="settingWeightUnit">Weight unit</label>
+      <select id="settingWeightUnit" onchange="toggleSetting('weightUnit',this.value)">
+        <option value="stlb">Stone + lb</option><option value="lb">lb</option><option value="kg">kg</option>
+      </select>
+    </div>
+    <div class="form-row"><label for="settingFastingHours">Fasting window (h)</label>
+      <input type="number" id="settingFastingHours" min="1" max="48" step="1" onchange="toggleSetting('fastingWindowHours',parseInt(this.value,10))">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Data</h3>
+    <button class="btn-danger" onclick="clearAllData()">Clear All Data</button>
+  </div>
+</div>
+
+<!-- ===================== TAB 5: EXPORT & SYNC ===================== -->
+<div id="tab-export" class="tab-content">
+  <header class="page-header"><h1>Export &amp; Sync</h1></header>
+
+  <div class="card">
+    <h3>Download</h3>
+    <button class="btn-secondary btn-block" onclick="downloadCSV()">Download CSV</button>
+    <button class="btn-secondary btn-block" onclick="downloadJSON()">Download JSON</button>
+  </div>
+
+  <div class="card">
+    <h3>Share Summary</h3>
+    <button class="btn-secondary btn-block" onclick="shareSummary()">Copy / Share Summary</button>
+  </div>
+
+  <div class="card">
+    <h3>Email Export</h3>
+    <button class="btn-secondary btn-block" onclick="emailExport()">Email Export</button>
+    <div class="hint-text" id="emailFallbackHint" style="display:none;">Your browser can't attach the full export file to an email &mdash; this will open a plain-text summary instead. Use Download + manually attach for full data.</div>
+  </div>
+
+  <div class="card">
+    <h3>Import Backup</h3>
+    <input type="file" id="importFile" accept="application/json" aria-label="Import backup JSON file" onchange="handleImportFile(event)">
+    <div class="hint-text">Restoring a backup will ask to confirm before replacing all current data.</div>
+  </div>
+
+  <div class="card" id="fsaCard" style="display:none;">
+    <h3>Desktop File Sync</h3>
+    <button class="btn-secondary btn-block" id="fsaSyncBtn" onclick="fsaSync()">Save Backup File (Desktop browsers only)</button>
+    <div class="hint-text">Uses the File System Access API where available (e.g. Chrome/Edge on desktop). Not available on iOS Safari.</div>
+  </div>
+</div>
+
+<!-- Bottom tab bar -->
+<nav class="tabbar">
+  <button data-tab="today" class="active" onclick="switchTab('today')"><span class="icon">&#9728;</span>Today</button>
+  <button data-tab="history" onclick="switchTab('history')"><span class="icon">&#128337;</span>History</button>
+  <button data-tab="reports" onclick="switchTab('reports')"><span class="icon">&#128202;</span>Reports</button>
+  <button data-tab="settings" onclick="switchTab('settings')"><span class="icon">&#9881;</span>Settings</button>
+  <button data-tab="export" onclick="switchTab('export')"><span class="icon">&#128228;</span>Export</button>
+</nav>
+
+<!--
+  Chart.js is loaded from a CDN below and is used ONLY on the Reports tab.
+  This means Reports charts require an internet connection the first time they are
+  loaded in a session (the browser may cache the script afterward). Every other
+  feature in this app -- logging food, weight, budgets, fasting timer, settings,
+  export/import -- works fully offline because it relies only on localStorage and
+  the inline JavaScript below, with no other network calls anywhere.
+-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+'use strict';
+
+/* =========================================================================
+   CONSTANTS
+   ========================================================================= */
+var NORMAL_POOL = 500;
+var SPECIAL_ALLOWANCE = 2000;
+var NORMAL_POOL_TOLERANCE = 50; // fixed 10% of the 500 weekly pool
+var LB_PER_STONE = 14;
+var LB_PER_KG = 0.45359237;
+
+var SETTINGS_KEY = 'slimline_settings_v1';
+var DAYS_KEY = 'slimline_days_v1';
+var FOODMEM_KEY = 'slimline_foodMemory_v1';
+var MILESTONES_KEY = 'slimline_milestones_v1';
+var WEEKLY_CELEBRATED_KEY = 'slimline_weeklyCelebrated_v1';
+var ACTIVE_FAST_KEY = 'slimline_activeFast_v1';
+
+var DEFAULT_SETTINGS = {
+  weekStartDay: 1,
+  weightUnit: 'stlb',
+  trackWeight: true,
+  trackCalories: true,
+  trackCarbs: true,
+  trackProtein: true,
+  trackFat: true,
+  trackFasting: true,
+  fastingWindowHours: 16
+};
+
+/* =========================================================================
+   STORAGE HELPERS
+   ========================================================================= */
+function loadJSON(key, fallback){
+  try{
+    var raw = localStorage.getItem(key);
+    if(raw === null || raw === undefined) return fallback;
+    return JSON.parse(raw);
+  }catch(e){
+    return fallback;
+  }
+}
+function saveJSON(key, obj){
+  localStorage.setItem(key, JSON.stringify(obj));
+}
+
+var settings, daysData, foodMemory, milestones, weeklyCelebrated, activeFast;
+
+function initStorage(){
+  settings = loadJSON(SETTINGS_KEY, null);
+  if(!settings){ settings = Object.assign({}, DEFAULT_SETTINGS); saveJSON(SETTINGS_KEY, settings); }
+  else { settings = Object.assign({}, DEFAULT_SETTINGS, settings); }
+  daysData = loadJSON(DAYS_KEY, null);
+  if(!daysData){ daysData = {}; saveJSON(DAYS_KEY, daysData); }
+  foodMemory = loadJSON(FOODMEM_KEY, null);
+  if(!foodMemory){ foodMemory = {}; saveJSON(FOODMEM_KEY, foodMemory); }
+  milestones = loadJSON(MILESTONES_KEY, null);
+  if(!milestones){ milestones = {highWaterMarkLb:0, celebratedStoneCounts:[]}; saveJSON(MILESTONES_KEY, milestones); }
+  weeklyCelebrated = loadJSON(WEEKLY_CELEBRATED_KEY, null);
+  if(!weeklyCelebrated){ weeklyCelebrated = {}; saveJSON(WEEKLY_CELEBRATED_KEY, weeklyCelebrated); }
+  // activeFast is either null (no fast currently in progress) or
+  // {startDate, startTime} -- see the FASTING WINDOW section below.
+  activeFast = loadJSON(ACTIVE_FAST_KEY, null);
+}
+
+/* =========================================================================
+   DATE HELPERS
+   ========================================================================= */
+function pad2(n){ return (n<10?'0':'')+n; }
+function dateStr(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function parseDateStr(s){
+  var parts = s.split('-').map(Number);
+  return new Date(parts[0], parts[1]-1, parts[2]);
+}
+function addDays(d, n){ var r = new Date(d.getTime()); r.setDate(r.getDate()+n); return r; }
+function todayStr(){ return dateStr(new Date()); }
+function formatDisplayDate(dstr){
+  var d = parseDateStr(dstr);
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[d.getDay()]+', '+d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();
+}
+function formatDisplayDateFull(dstr){
+  // Full weekday name + zero-padded day, e.g. "Saturday, 08 Aug 2026" -- used on the
+  // Today-tab date navigator so the day of week is always visible, not just the date.
+  var d = parseDateStr(dstr);
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[d.getDay()]+', '+pad2(d.getDate())+' '+months[d.getMonth()]+' '+d.getFullYear();
+}
+function getWeekStart(date, weekStartDay){
+  var diff = (date.getDay() - weekStartDay + 7) % 7;
+  return addDays(new Date(date.getFullYear(), date.getMonth(), date.getDate()), -diff);
+}
+function getWeekDates(weekStartDate){
+  var out = [];
+  for(var i=0;i<7;i++){ out.push(dateStr(addDays(weekStartDate, i))); }
+  return out;
+}
+function getWeekKey(dateOrStr, weekStartDay){
+  var d = (typeof dateOrStr === 'string') ? parseDateStr(dateOrStr) : dateOrStr;
+  return dateStr(getWeekStart(d, weekStartDay));
+}
+
+/* =========================================================================
+   WEIGHT HELPERS  (canonical storage is always lb)
+   ========================================================================= */
+function lbToStone(lb){
+  var st = Math.floor(lb / LB_PER_STONE);
+  var rem = Math.round(lb - st*LB_PER_STONE);
+  if(rem === 14){ st += 1; rem = 0; }
+  return {st:st, lb:rem};
+}
+function formatWeightDisplay(lb, unit){
+  if(lb === null || lb === undefined) return '';
+  if(unit === 'stlb'){ var s = lbToStone(lb); return s.st+' st '+s.lb+' lb'; }
+  if(unit === 'kg'){ return (Math.round(lb*LB_PER_KG*10)/10)+' kg'; }
+  return (Math.round(lb*10)/10)+' lb';
+}
+function bracket(lb){ return Math.floor(lb / LB_PER_STONE); }
+
+/* =========================================================================
+   VIEW STATE
+   ========================================================================= */
+var viewedDate = null;
+var draft = null; // {weightLb, isTwoThousandDay, foodLog:[...]}
+var currentReportRange = 14;
+var charts = { calorieBreakdown:null, totalCalories:null, weight:null, macro:null, fastingHours:null };
+var newItemMemMatch = null; // matched perUnit object for Add-food form
+var newTouched = { calories:false, carbs:false, protein:false, fat:false };
+
+// True whenever `draft` has been edited (food add/edit/delete, weight, the
+// 2000-cal flag, or a past-day fast start/finish field) since the last time it
+// was either freshly loaded from daysData or successfully saved. This is an
+// in-memory-only warning flag -- it is never persisted, and it does NOT change
+// the "nothing writes to daysData/localStorage until Save is pressed" behavior.
+// It only gates navigation (day nav, date picker, History, switching tabs
+// away from Today) behind a confirm() so an unsaved draft is never silently
+// discarded.
+var isDirty = false;
+function markDirty(){ isDirty = true; }
+// Returns true if it's OK to proceed with discarding the current draft
+// (either nothing unsaved, or the user confirmed leaving anyway).
+function confirmDiscardDraftIfDirty(){
+  if(!isDirty) return true;
+  return confirm('You have unsaved changes on this day. Leave without saving?');
+}
+
+/* =========================================================================
+   BANNERS / TOASTS
+   ========================================================================= */
+function showBanner(message, type){
+  type = type || 'info';
+  var container = document.getElementById('bannerContainer');
+  var el = document.createElement('div');
+  el.className = 'banner ' + type;
+  var span = document.createElement('span');
+  span.textContent = message;
+  var btn = document.createElement('button');
+  btn.className = 'close';
+  btn.innerHTML = '&#10005;';
+  btn.onclick = function(){ el.remove(); };
+  el.appendChild(span);
+  el.appendChild(btn);
+  container.appendChild(el);
+  setTimeout(function(){ if(el.parentNode) el.remove(); }, 8000);
+}
+function showToast(message){
+  var container = document.getElementById('bannerContainer');
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(function(){ if(el.parentNode) el.remove(); }, 2600);
+}
+
+/* =========================================================================
+   TAB SWITCHING
+   ========================================================================= */
+function switchTab(name){
+  // Guard: leaving the Today tab for a different tab while the draft has
+  // unsaved edits would silently discard them the next time Today is shown
+  // (renderToday() doesn't touch draft, but a later loadDay()/tab revisit
+  // could) -- so warn here, consistent with the other draft-discarding nav
+  // paths (day arrows, date picker, History).
+  var currentActiveTab = document.querySelector('.tab-content.active');
+  var leavingToday = currentActiveTab && currentActiveTab.id === 'tab-today' && name !== 'today';
+  if(leavingToday && !confirmDiscardDraftIfDirty()) return;
+
+  var tabs = document.querySelectorAll('.tab-content');
+  for(var i=0;i<tabs.length;i++){ tabs[i].classList.remove('active'); }
+  document.getElementById('tab-'+name).classList.add('active');
+  var btns = document.querySelectorAll('.tabbar button');
+  for(var j=0;j<btns.length;j++){ btns[j].classList.toggle('active', btns[j].getAttribute('data-tab')===name); }
+  if(name==='today') renderToday();
+  if(name==='history') renderHistory();
+  if(name==='reports') renderReports();
+  if(name==='settings') renderSettings();
+  if(name==='export') renderExport();
+}
+
+/* =========================================================================
+   CORE DATA ACCESS
+   ========================================================================= */
+function getEffectiveDay(dstr){
+  if(draft && dstr === viewedDate){
+    return { date: dstr, isTwoThousandDay: !!draft.isTwoThousandDay, foodLog: draft.foodLog, weightLb: draft.weightLb };
+  }
+  return daysData[dstr] || null;
+}
+function countedCalories(dayEntry){
+  if(!dayEntry || !dayEntry.foodLog) return 0;
+  var sum = 0;
+  for(var i=0;i<dayEntry.foodLog.length;i++){
+    var e = dayEntry.foodLog[i];
+    if(!e.isFree){ sum += (e.calories || 0); }
+  }
+  return sum;
+}
+function freeCalories(dayEntry){
+  if(!dayEntry || !dayEntry.foodLog) return 0;
+  var sum = 0;
+  for(var i=0;i<dayEntry.foodLog.length;i++){
+    var e = dayEntry.foodLog[i];
+    if(e.isFree){ sum += (e.calories || 0); }
+  }
+  return sum;
+}
+function sumMacroAll(dayEntry, macro){
+  if(!dayEntry || !dayEntry.foodLog) return 0;
+  var sum = 0;
+  for(var i=0;i<dayEntry.foodLog.length;i++){
+    sum += (dayEntry.foodLog[i][macro] || 0);
+  }
+  return sum;
+}
+
+function buildDraftFromDay(dayObj){
+  if(dayObj){
+    return {
+      weightLb: (dayObj.weightLb === undefined) ? null : dayObj.weightLb,
+      isTwoThousandDay: !!dayObj.isTwoThousandDay,
+      // Past-day fasting fields (raw "HH:MM" strings or ''). Only used/shown
+      // when viewing a day other than today -- see renderFastingCard().
+      fastStartTime: (dayObj.fast && dayObj.fast.startTime) ? dayObj.fast.startTime : '',
+      fastEndTime: (dayObj.fast && dayObj.fast.endTime) ? dayObj.fast.endTime : '',
+      foodLog: dayObj.foodLog.map(function(e){
+        var copy = Object.assign({}, e);
+        // Existing saved rows start "untouched" for every nutrient field -- a field only
+        // becomes touched if the user actually edits it in this session (see updateFoodField).
+        // Otherwise a qty-only edit would re-derive perUnit from a stale absolute value and
+        // corrupt food-memory autofill for that item.
+        copy._touched = { calories:false, carbs:false, protein:false, fat:false };
+        return copy;
+      })
+    };
+  }
+  return { weightLb: null, isTwoThousandDay: false, fastStartTime: '', fastEndTime: '', foodLog: [] };
+}
+
+/* =========================================================================
+   BUDGET / SCORING ALGORITHMS  (Section 3.3 - Weekly Reserve model)
+   The old "rolling fair-share" system used to divide whatever was left of the
+   500-calorie pool across the remaining normal days of the week to produce a
+   per-day target. That per-day division has been removed entirely. Instead,
+   normal days simply share one running weekly reserve: 500 calories minus
+   whatever counted (non-free) calories have been eaten on normal days so far
+   this week. There is no more daily target to score against, so the old
+   daily green/amber/red score is gone too -- only the weekly score remains.
+   ========================================================================= */
+function computeWeeklyScore(total){
+  // Scored against the 500-calorie weekly pool ONLY -- this must never be blended
+  // with the separate 2000-calorie cheat-day allowance.
+  if(total <= NORMAL_POOL) return {level:'GREEN', label:'On Track'};
+  if(total <= NORMAL_POOL + NORMAL_POOL_TOLERANCE) return {level:'AMBER', label:'Slightly Over'};
+  return {level:'RED', label:'Over Budget'};
+}
+function getCheatDayStatusText(ctx){
+  // Informational only -- deliberately kept separate from the 500-pool weekly-left
+  // figure and the weekly score, per the Slimlines rule that the two allowances
+  // (500 pool vs 2000 cheat day) never mix.
+  if(!ctx.flaggedDate){
+    return 'Cheat day: not used yet';
+  }
+  var flaggedEntry = getEffectiveDay(ctx.flaggedDate);
+  var used = Math.round(countedCalories(flaggedEntry));
+  return 'Cheat day: ' + formatDisplayDate(ctx.flaggedDate) + ' — ' + used + ' of ' + SPECIAL_ALLOWANCE + ' used';
+}
+
+function computeDayContext(dstr){
+  var dateObj = parseDateStr(dstr);
+  var weekStart = getWeekStart(dateObj, settings.weekStartDay);
+  var weekDates = getWeekDates(weekStart);
+
+  var flaggedDate = null;
+  for(var i=0;i<weekDates.length;i++){
+    var ed = getEffectiveDay(weekDates[i]);
+    if(ed && ed.isTwoThousandDay){ flaggedDate = weekDates[i]; break; }
+  }
+  var normalDates = flaggedDate ? weekDates.filter(function(d){ return d !== flaggedDate; }) : weekDates.slice();
+  var isFlaggedDay = (dstr === flaggedDate);
+
+  // Weekly 500-calorie reserve: a single running number, NOT divided across days.
+  // It's 500 minus the sum of counted (non-free) calories eaten on normal
+  // (non-flagged) days from the start of this week through the viewed day.
+  // The flagged 2000-calorie day is excluded from this sum entirely (it never
+  // draws down the weekly reserve, and the weekly reserve never affects it).
+  var weeklyReserveConsumed = 0;
+  normalDates.forEach(function(d){ if(d <= dstr){ weeklyReserveConsumed += countedCalories(getEffectiveDay(d)); } });
+  var weeklyReserveRemaining = NORMAL_POOL - weeklyReserveConsumed;
+
+  // remainingToday is whichever hero number applies to the viewed day: the
+  // flagged day's own independent 2000 allowance, or the shared weekly reserve.
+  var remainingToday;
+  if(isFlaggedDay){
+    remainingToday = SPECIAL_ALLOWANCE - countedCalories(getEffectiveDay(dstr));
+  } else {
+    remainingToday = weeklyReserveRemaining;
+  }
+
+  var totalConsumedThisWeek = 0;
+  weekDates.forEach(function(d){ if(d <= dstr){ totalConsumedThisWeek += countedCalories(getEffectiveDay(d)); } });
+
+  // The weekly score/left figure must reflect ONLY the 500-calorie pool
+  // (weeklyReserveConsumed), never combined with the 2000-calorie cheat day.
+  var weeklyScore = computeWeeklyScore(weeklyReserveConsumed);
+
+  return {
+    weekDates: weekDates, flaggedDate: flaggedDate, normalDates: normalDates, isFlaggedDay: isFlaggedDay,
+    weeklyReserveRemaining: weeklyReserveRemaining, remainingToday: remainingToday,
+    totalConsumedThisWeek: totalConsumedThisWeek,
+    weeklyScore: weeklyScore
+  };
+}
+
+/* =========================================================================
+   FASTING WINDOW  (Section 3.4) -- explicit user-controlled Start/Stop model.
+   NOTE: This is a static web app added to the Home Screen with no service
+   worker / background execution entitlement on iOS Safari. It cannot fire
+   notifications while closed or backgrounded. The live countdown below is
+   only ever recomputed while the app is open/foregrounded, via a 60s
+   interval plus a visibilitychange listener.
+
+   Data model:
+   - `activeFast` (module-level var, persisted under ACTIVE_FAST_KEY) is
+     either null, or {startDate, startTime} describing the one fast
+     currently in progress (if any).
+   - Once a fast is completed (stopped), its full record is written onto
+     daysData[<the day it STARTED>].fast = {startTime, endTime,
+     crossedMidnight, durationHours} -- a fast's duration is always
+     attributed entirely to its start day, never split across two days.
+     crossedMidnight/durationHours are always derived, never entered
+     directly by the user.
+   ========================================================================= */
+function nowHHMM(){
+  var d = new Date();
+  return pad2(d.getHours())+':'+pad2(d.getMinutes());
+}
+function combineDateTime(dstr, hhmm){
+  var d = parseDateStr(dstr);
+  var parts = (hhmm || '00:00').split(':').map(Number);
+  d.setHours(parts[0]||0, parts[1]||0, 0, 0);
+  return d;
+}
+function fastDurationHours(startDate, startTime, endDate, endTime){
+  var start = combineDateTime(startDate, startTime);
+  var end = combineDateTime(endDate, endTime);
+  return (end.getTime() - start.getTime()) / 3600000;
+}
+function roundHours(h){ return Math.round(h*100)/100; }
+
+// Writes a completed fast record onto daysData[dateKey].fast, creating a
+// minimal day object first if that day was never otherwise saved.
+function writeFastRecord(dateKey, startTime, endTime, crossedMidnight, durationHours){
+  if(!daysData[dateKey]){
+    var nowIso = new Date().toISOString();
+    daysData[dateKey] = { date: dateKey, isTwoThousandDay:false, weightLb:null, foodLog:[], createdAt:nowIso, updatedAt:nowIso };
+  }
+  daysData[dateKey].fast = {
+    startTime: startTime,
+    endTime: endTime,
+    crossedMidnight: !!crossedMidnight,
+    durationHours: (durationHours===null||durationHours===undefined||isNaN(durationHours)) ? null : roundHours(durationHours)
+  };
+  daysData[dateKey].updatedAt = new Date().toISOString();
+  saveJSON(DAYS_KEY, daysData);
+}
+
+// Past-day editing: given the two raw time-input strings for dateKey, compute
+// what daysData[dateKey].fast should become. Both blank -> undefined (caller
+// omits the field entirely). Both present -> full computed record, inferring
+// midnight-crossing purely by comparing the two time-of-day strings
+// (zero-padded HH:MM strings compare lexicographically the same as
+// chronologically). Only one present -> store what's given and leave
+// crossedMidnight/durationHours null rather than guessing.
+function computeFastField(dateKey, startTime, endTime){
+  if(!startTime && !endTime) return undefined;
+  if(startTime && endTime){
+    var crossedMidnight = (endTime < startTime);
+    var endDate = crossedMidnight ? dateStr(addDays(parseDateStr(dateKey),1)) : dateKey;
+    var durationHours = fastDurationHours(dateKey, startTime, endDate, endTime);
+    return { startTime:startTime, endTime:endTime, crossedMidnight:crossedMidnight, durationHours: roundHours(durationHours) };
+  }
+  return { startTime: startTime || null, endTime: endTime || null, crossedMidnight: null, durationHours: null };
+}
+
+function startActiveFastNow(){
+  // Defensive guard: the Start button is only ever rendered when no fast is
+  // active (see renderFastingCard), so this shouldn't be reachable through the
+  // UI with activeFast already set. But if it's ever called anyway, no-op
+  // rather than silently overwriting the in-progress fast's real startTime.
+  if(activeFast){
+    showBanner('A fast is already in progress.', 'info');
+    return;
+  }
+  activeFast = { startDate: todayStr(), startTime: nowHHMM() };
+  saveJSON(ACTIVE_FAST_KEY, activeFast);
+  renderFastingCard();
+}
+function stopActiveFastNow(){
+  if(!activeFast) return;
+  var endDateActual = todayStr();
+  var endTime = nowHHMM();
+  var durationHours = fastDurationHours(activeFast.startDate, activeFast.startTime, endDateActual, endTime);
+  var crossedMidnight = (endDateActual !== activeFast.startDate);
+  // Guard against *silently* discarding a manually-entered fast record. It's
+  // possible (if unusual) for daysData[activeFast.startDate].fast to already
+  // hold a complete manual record -- e.g. the user edited that same date via
+  // the past-day fast fields / saveToday while this live fast was still
+  // running. writeFastRecord() below will unconditionally overwrite it with
+  // the live-computed record. Chosen behavior: the live, start-to-finish
+  // timestamped record wins (it's the more authoritative source of truth for
+  // a fast that was actually tracked live), but we no longer do this without
+  // telling the user, since this is a rare, easy-to-miss edge case.
+  var existingDay = daysData[activeFast.startDate];
+  var existingFast = existingDay && existingDay.fast;
+  if(existingFast && existingFast.durationHours !== null && existingFast.durationHours !== undefined){
+    showBanner('A previously entered fast record for ' + formatDisplayDate(activeFast.startDate) + ' was replaced with the fast you just tracked live.', 'warning');
+  }
+  writeFastRecord(activeFast.startDate, activeFast.startTime, endTime, crossedMidnight, durationHours);
+  activeFast = null;
+  saveJSON(ACTIVE_FAST_KEY, null);
+  renderFastingCard();
+}
+// Manual "Start time" field on today's live card. With no fast running this
+// starts one at the given time (even if earlier today, so the countdown
+// immediately reflects elapsed time). With a fast already running, this
+// corrects its startTime instead of starting a second one.
+function onFastStartInputChange(value){
+  if(!value) return;
+  if(activeFast){
+    activeFast.startTime = value;
+  } else {
+    activeFast = { startDate: todayStr(), startTime: value };
+  }
+  saveJSON(ACTIVE_FAST_KEY, activeFast);
+  renderFastingCard();
+}
+// Manual "Finish time" field on today's live card. Only meaningful while a
+// fast is running; acts like Stop Fast at the given time-of-day, inferring
+// midnight-crossing from the two time-of-day strings (mirrors
+// computeFastField's past-day logic) since only a time, not a date, is given.
+function onFastFinishInputChange(value){
+  if(!value) return;
+  if(!activeFast){
+    showBanner('Start a fast before entering a finish time.', 'error');
+    renderFastingCard();
+    return;
+  }
+  var crossedMidnight = (value < activeFast.startTime);
+  var endDate = crossedMidnight ? dateStr(addDays(parseDateStr(activeFast.startDate),1)) : activeFast.startDate;
+  var durationHours = fastDurationHours(activeFast.startDate, activeFast.startTime, endDate, value);
+  writeFastRecord(activeFast.startDate, activeFast.startTime, value, crossedMidnight, durationHours);
+  activeFast = null;
+  saveJSON(ACTIVE_FAST_KEY, null);
+  renderFastingCard();
+}
+// Past-day plain time fields write into `draft` only; they're committed to
+// daysData[viewedDate].fast on Save, same as every other draft field.
+function onDraftFastFieldChange(field, value){
+  draft[field] = value || '';
+  markDirty();
+}
+
+function formatHM(ms){
+  var totalMin = Math.max(0, Math.round(ms/60000));
+  var h = Math.floor(totalMin/60), m = totalMin%60;
+  return h+'h '+m+'m';
+}
+// Lightweight periodic refresh of just the live countdown text (called every
+// 60s and on visibilitychange) -- does not touch buttons/inputs so it never
+// disturbs whatever the user is mid-editing. No-ops if the live text element
+// isn't currently on screen (fasting off, or viewing a past day).
+function updateFastingStateText(){
+  var el = document.getElementById('fastingStateText');
+  if(!el) return;
+  if(!activeFast){
+    el.className = 'fasting-state neutral';
+    el.textContent = 'No fast in progress. Press Start Fast when you begin.';
+    return;
+  }
+  var start = combineDateTime(activeFast.startDate, activeFast.startTime);
+  var now = new Date();
+  var elapsedMs = now.getTime() - start.getTime();
+  var thresholdMs = settings.fastingWindowHours * 3600000;
+  if(elapsedMs < thresholdMs){
+    el.className = 'fasting-state fasting';
+    el.textContent = 'Fasting — ' + formatHM(thresholdMs - elapsedMs) + ' remaining until your goal.';
+  } else {
+    el.className = 'fasting-state open';
+    el.textContent = 'Eating window open — ' + formatHM(elapsedMs - thresholdMs) + ' since goal reached.';
+  }
+}
+// Full render of the Fasting Window card. On today, shows the live
+// Start/Stop buttons + countdown + manual override time inputs. On any other
+// (past) day, shows two plain "Fast start/finish time" fields pre-filled
+// from that day's saved record, committed via the normal Save flow.
+function renderFastingCard(){
+  var card = document.getElementById('fastingCard');
+  if(!card) return;
+  if(!settings.trackFasting){
+    card.style.display = 'none';
+    card.innerHTML = '';
+    return;
+  }
+  card.style.display = '';
+  var isToday = (viewedDate === todayStr());
+  var html = '<h3>Fasting Window</h3>';
+  if(isToday){
+    html += '<div class="fasting-state neutral" id="fastingStateText">Loading...</div>';
+    if(activeFast){
+      html += '<button class="btn-secondary btn-block" onclick="stopActiveFastNow()" style="margin-top:8px;">Stop Fast</button>';
+    } else {
+      html += '<button class="btn-secondary btn-block" onclick="startActiveFastNow()" style="margin-top:8px;">Start Fast</button>';
+    }
+    var startVal = activeFast ? activeFast.startTime : '';
+    html += '<div class="form-row"><label for="fastStartInput">Start time</label><input type="time" id="fastStartInput" value="'+escapeAttr(startVal)+'" onchange="onFastStartInputChange(this.value)"></div>';
+    html += '<div class="form-row"><label for="fastFinishInput">Finish time</label><input type="time" id="fastFinishInput" value="" onchange="onFastFinishInputChange(this.value)"></div>';
+    html += '<div class="hint-text">This app has no background/notification ability once closed on iOS &mdash; the fasting timer only updates while the app is open.</div>';
+  } else {
+    var sv = draft.fastStartTime || '';
+    var ev = draft.fastEndTime || '';
+    html += '<div class="form-row"><label for="fastStartInput">Fast start time</label><input type="time" id="fastStartInput" value="'+escapeAttr(sv)+'" onchange="onDraftFastFieldChange(\'fastStartTime\',this.value)"></div>';
+    html += '<div class="form-row"><label for="fastFinishInput">Fast finish time</label><input type="time" id="fastFinishInput" value="'+escapeAttr(ev)+'" onchange="onDraftFastFieldChange(\'fastEndTime\',this.value)"></div>';
+    html += '<div class="hint-text">Enter both times to record this day\'s completed fast, then Save. Leave both blank to remove it.</div>';
+  }
+  card.innerHTML = html;
+  updateFastingStateText();
+}
+
+/* =========================================================================
+   WEIGHT MILESTONES  (Section 3.6)
+   ========================================================================= */
+function checkBracketCrossing(savedDate, newWeightLb){
+  var priorEntries = [];
+  for(var d in daysData){
+    var day = daysData[d];
+    if(day && day.weightLb !== null && day.weightLb !== undefined && d < savedDate){
+      priorEntries.push(day);
+    }
+  }
+  if(!priorEntries.length) return;
+  priorEntries.sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+  var prev = priorEntries[0];
+  var prevB = bracket(prev.weightLb), newB = bracket(newWeightLb);
+  if(newB !== prevB){
+    if(newB < prevB){
+      showBanner('You\'ve moved into the ' + newB + ' stone bracket!', 'success');
+    } else {
+      showBanner('You\'ve moved back into the ' + newB + ' stone bracket — keep going.', 'info');
+    }
+  }
+}
+function recomputeMilestones(justSavedDate){
+  var entries = [];
+  for(var d in daysData){
+    var day = daysData[d];
+    if(day && day.weightLb !== null && day.weightLb !== undefined){ entries.push(day); }
+  }
+  entries.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+
+  var hwm = -Infinity;
+  var justSavedStonesLost = null;
+  entries.forEach(function(e){
+    hwm = Math.max(hwm, e.weightLb);
+    if(justSavedDate && e.date === justSavedDate){
+      justSavedStonesLost = Math.max(0, Math.floor((hwm - e.weightLb) / LB_PER_STONE));
+    }
+  });
+  var finalHwm = entries.length ? Math.max.apply(null, entries.map(function(e){ return e.weightLb; })) : 0;
+
+  milestones.highWaterMarkLb = finalHwm;
+  if(justSavedStonesLost !== null){
+    var prevMax = milestones.celebratedStoneCounts.length ? Math.max.apply(null, milestones.celebratedStoneCounts) : 0;
+    for(var n = prevMax + 1; n <= justSavedStonesLost; n++){
+      showBanner('Congratulations — you\'ve lost ' + n + ' stone since you started!', 'success');
+      milestones.celebratedStoneCounts.push(n);
+    }
+  }
+  saveJSON(MILESTONES_KEY, milestones);
+}
+
+/* =========================================================================
+   WEEKLY CONGRATULATIONS CHECK  (run on load)
+   ========================================================================= */
+function checkWeeklyCongrats(){
+  var today = new Date();
+  var thisWeekStart = getWeekStart(today, settings.weekStartDay);
+  var completedWeekStart = addDays(thisWeekStart, -7);
+  var completedWeekDates = getWeekDates(completedWeekStart);
+  var weekKey = dateStr(completedWeekStart);
+  if(weeklyCelebrated[weekKey]) return;
+  var hasAnyData = completedWeekDates.some(function(d){ return !!daysData[d]; });
+  if(!hasAnyData) return;
+  // Only the 500-calorie pool counts here -- exclude that week's flagged cheat day
+  // entirely so this congrats check never blends the two allowances together.
+  var flaggedDate = null;
+  completedWeekDates.forEach(function(d){ if(daysData[d] && daysData[d].isTwoThousandDay) flaggedDate = d; });
+  var total = 0;
+  completedWeekDates.forEach(function(d){ if(d !== flaggedDate){ total += countedCalories(daysData[d]); } });
+  if(total <= NORMAL_POOL){
+    showBanner('Great week! You finished ' + formatDisplayDate(completedWeekDates[0]) + ' – ' + formatDisplayDate(completedWeekDates[6]) + ' within your ' + NORMAL_POOL + '-calorie weekly reserve.', 'success');
+  }
+  weeklyCelebrated[weekKey] = true;
+  saveJSON(WEEKLY_CELEBRATED_KEY, weeklyCelebrated);
+}
+
+/* =========================================================================
+   TODAY TAB RENDERING
+   ========================================================================= */
+function navDay(delta){
+  if(!confirmDiscardDraftIfDirty()) return;
+  var d = addDays(parseDateStr(viewedDate), delta);
+  loadDay(dateStr(d));
+}
+function onDateNavInput(val){
+  if(!val) return;
+  if(!confirmDiscardDraftIfDirty()){
+    // The date input's own value already changed to the picked date before
+    // this handler ran -- snap it back to the day still actually loaded.
+    document.getElementById('dateNavInput').value = viewedDate;
+    return;
+  }
+  loadDay(val);
+}
+function loadDay(dstr){
+  viewedDate = dstr;
+  draft = buildDraftFromDay(daysData[dstr] || null);
+  isDirty = false; // fresh draft straight from persisted data -- nothing unsaved yet
+  resetAddForm();
+  renderToday();
+}
+
+function renderToday(){
+  document.getElementById('dateNavInput').value = viewedDate;
+  document.getElementById('dateNavDayLabel').textContent = formatDisplayDateFull(viewedDate);
+
+  var titleEl = document.getElementById('todayHeaderTitle');
+  var subEl = document.getElementById('todayHeaderSub');
+  var t = todayStr();
+  var yest = dateStr(addDays(new Date(), -1));
+  var label;
+  if(viewedDate === t) label = 'Today';
+  else if(viewedDate === yest) label = 'Yesterday';
+  else label = formatDisplayDate(viewedDate);
+  titleEl.textContent = label;
+  titleEl.className = (viewedDate !== t) ? 'amber' : '';
+  subEl.textContent = (viewedDate === t) ? '' : formatDisplayDate(viewedDate);
+
+  renderHero();
+  renderWeekStrip();
+  renderFlagCard();
+  renderFastingCard();
+  renderWeightCard();
+  renderFoodLogList();
+  renderMacroFieldVisibility();
+  document.getElementById('weightCard').style.display = settings.trackWeight ? '' : 'none';
+}
+
+function renderHero(){
+  var ctx = computeDayContext(viewedDate);
+  var eff = getEffectiveDay(viewedDate);
+  var heroCard = document.getElementById('heroCard');
+  var weekStripCard = document.getElementById('weekStripCard');
+  var flagCard = document.getElementById('flagCard');
+
+  if(!settings.trackCalories){
+    // Macros-only mode: hide the calorie budget system entirely.
+    var parts = [];
+    if(settings.trackCarbs) parts.push({v: sumMacroAll(eff,'carbs'), l:'Carbs (g)'});
+    if(settings.trackProtein) parts.push({v: sumMacroAll(eff,'protein'), l:'Protein (g)'});
+    if(settings.trackFat) parts.push({v: sumMacroAll(eff,'fat'), l:'Fat (g)'});
+    var html = '<div class="hero-label">Today\'s totals</div><div class="hero-macros">';
+    if(parts.length === 0){
+      html += '<div class="lbl">No macro tracking enabled.</div>';
+    } else {
+      parts.forEach(function(p){
+        html += '<div><div class="val">'+Math.round(p.v)+'</div><div class="lbl">'+p.l+'</div></div>';
+      });
+    }
+    html += '</div>';
+    heroCard.innerHTML = html;
+    weekStripCard.style.display = 'none';
+    flagCard.style.display = 'none';
+    return;
+  }
+
+  weekStripCard.style.display = '';
+  flagCard.style.display = '';
+
+  var rounded = Math.round(ctx.remainingToday);
+  var cls = rounded < 0 ? 'hero-number negative' : 'hero-number';
+  var labelHtml, warningHtml = '';
+  if(ctx.isFlaggedDay){
+    labelHtml = 'calories remaining today &mdash; your 2000-calorie day';
+  } else {
+    labelHtml = 'calories remaining from your weekly 500-calorie reserve';
+    if(rounded < 0){
+      warningHtml = '<div class="warning-text">You\'ve gone over your weekly 500-calorie reserve by ' + Math.abs(rounded) + ' calories.</div>';
+    }
+  }
+  heroCard.innerHTML =
+    '<div class="'+cls+'">'+rounded+'</div>' +
+    '<div class="hero-label">'+labelHtml+'</div>' +
+    warningHtml;
+}
+
+function renderWeekStrip(){
+  if(!settings.trackCalories) return;
+  var ctx = computeDayContext(viewedDate);
+  var el = document.getElementById('weekStripCard');
+  el.innerHTML =
+    '<div><div class="num">'+Math.round(ctx.weeklyReserveRemaining)+' / '+NORMAL_POOL+'</div><div class="hero-label">week remaining (500 pool)</div></div>' +
+    '<div class="badge '+ctx.weeklyScore.level+'"><span class="dot"></span>'+ctx.weeklyScore.label+'</div>' +
+    '<div class="hint-text" style="flex-basis:100%;margin-top:2px;">'+getCheatDayStatusText(ctx)+'</div>';
+}
+
+function renderFlagCard(){
+  if(!settings.trackCalories) return;
+  var ctx = computeDayContext(viewedDate);
+  var el = document.getElementById('flagCard');
+  var isThisFlagged = ctx.flaggedDate === viewedDate;
+  var otherFlagged = (ctx.flaggedDate && ctx.flaggedDate !== viewedDate) ? ctx.flaggedDate : null;
+
+  var html = '<h3>2000-Calorie Day</h3>';
+  if(isThisFlagged){
+    html += '<div class="hint-text" style="margin-bottom:8px;">This day is your 2000-calorie day this week.</div>';
+    html += '<button class="btn-secondary btn-block" onclick="unflagToday()">Unflag this day</button>';
+  } else if(otherFlagged){
+    html += '<div class="hint-text" style="margin-bottom:8px;">' + formatDisplayDate(otherFlagged) + ' is already set as your 2000-calorie day this week. Unflag it first if you want to move it.</div>';
+    html += '<button class="btn-secondary btn-block" disabled style="opacity:0.5;">Mark as my 2000-calorie day</button>';
+  } else {
+    html += '<button class="btn-secondary btn-block" onclick="flagToday()">Mark ' + getViewedDayLabelLower() + ' as my 2000-calorie day</button>';
+  }
+  el.innerHTML = html;
+}
+function getViewedDayLabelLower(){
+  var t = todayStr();
+  var yest = dateStr(addDays(new Date(), -1));
+  if(viewedDate === t) return 'today';
+  if(viewedDate === yest) return 'yesterday';
+  return formatDisplayDate(viewedDate);
+}
+function flagToday(){ draft.isTwoThousandDay = true; markDirty(); renderToday(); }
+function unflagToday(){ draft.isTwoThousandDay = false; markDirty(); renderToday(); }
+
+function renderWeightCard(){
+  var container = document.getElementById('weightInputs');
+  var unit = settings.weightUnit;
+  if(unit === 'stlb'){
+    var s = (draft.weightLb !== null && draft.weightLb !== undefined) ? lbToStone(draft.weightLb) : {st:'', lb:''};
+    container.innerHTML =
+      '<div class="weight-inputs">' +
+      '<input type="number" id="weightSt" placeholder="st" aria-label="Weight, stone" value="'+s.st+'" oninput="onWeightStLbChange()">' +
+      '<span class="unit-lbl">st</span>' +
+      '<input type="number" id="weightLbPart" placeholder="lb" aria-label="Weight, pounds" value="'+s.lb+'" oninput="onWeightStLbChange()">' +
+      '<span class="unit-lbl">lb</span>' +
+      '<button class="btn-secondary" onclick="clearWeight()">Clear</button>' +
+      '</div>';
+  } else {
+    var display = '';
+    if(draft.weightLb !== null && draft.weightLb !== undefined){
+      display = (unit === 'kg') ? (Math.round(draft.weightLb*LB_PER_KG*10)/10) : (Math.round(draft.weightLb*10)/10);
+    }
+    container.innerHTML =
+      '<div class="weight-inputs">' +
+      '<input type="number" step="0.1" id="weightSingle" placeholder="'+unit+'" aria-label="Weight, '+unit+'" value="'+display+'" oninput="onWeightSingleChange()">' +
+      '<span class="unit-lbl">'+unit+'</span>' +
+      '<button class="btn-secondary" onclick="clearWeight()">Clear</button>' +
+      '</div>';
+  }
+}
+function onWeightStLbChange(){
+  var stEl = document.getElementById('weightSt'), lbEl = document.getElementById('weightLbPart');
+  var st = parseFloat(stEl.value), lb = parseFloat(lbEl.value);
+  markDirty();
+  if(isNaN(st) && isNaN(lb)){ draft.weightLb = null; return; }
+  draft.weightLb = (isNaN(st)?0:st)*LB_PER_STONE + (isNaN(lb)?0:lb);
+}
+function onWeightSingleChange(){
+  var el = document.getElementById('weightSingle');
+  var v = parseFloat(el.value);
+  markDirty();
+  if(isNaN(v)){ draft.weightLb = null; return; }
+  draft.weightLb = (settings.weightUnit === 'kg') ? v / LB_PER_KG : v;
+}
+function clearWeight(){ draft.weightLb = null; markDirty(); renderWeightCard(); }
+
+function renderMacroFieldVisibility(){
+  document.querySelectorAll('.macro-field').forEach(function(elm){
+    var macro = elm.getAttribute('data-macro');
+    var show = (macro === 'calories') ? settings.trackCalories :
+               (macro === 'carbs') ? settings.trackCarbs :
+               (macro === 'protein') ? settings.trackProtein :
+               (macro === 'fat') ? settings.trackFat : true;
+    elm.style.display = show ? '' : 'none';
+  });
+}
+
+function renderFoodLogList(){
+  var list = document.getElementById('foodLogList');
+  var empty = document.getElementById('foodLogEmpty');
+  if(!draft.foodLog.length){
+    list.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  var html = '';
+  draft.foodLog.forEach(function(entry, idx){
+    var itemLabel = escapeAttr(entry.item) || 'this item';
+    html += '<div class="food-row">' +
+      '<div class="top-line">' +
+        '<input type="time" value="'+(entry.time||'')+'" aria-label="Time for '+itemLabel+'" onchange="updateFoodField('+idx+',\'time\',this.value)" style="max-width:90px;">' +
+        '<input type="text" value="'+escapeAttr(entry.item)+'" aria-label="Food item name" onchange="updateFoodField('+idx+',\'item\',this.value)">' +
+        '<button class="del-btn" aria-label="Delete '+itemLabel+'" onclick="deleteFoodRow('+idx+')">&#10005;</button>' +
+      '</div>' +
+      '<div class="grid">' +
+        '<div><label>Qty</label><input type="number" step="0.5" value="'+entry.qty+'" aria-label="Quantity for '+itemLabel+'" onchange="updateFoodField('+idx+',\'qty\',parseFloat(this.value)||0)"></div>' +
+        (settings.trackCalories ? '<div><label>Cal</label><input type="number" value="'+numOrEmpty(entry.calories)+'" aria-label="Calories for '+itemLabel+'" onchange="updateFoodField('+idx+',\'calories\',parseFloat(this.value))"></div>' : '') +
+        (settings.trackCarbs ? '<div><label>Carbs</label><input type="number" value="'+numOrEmpty(entry.carbs)+'" aria-label="Carbs for '+itemLabel+'" onchange="updateFoodField('+idx+',\'carbs\',parseFloat(this.value))"></div>' : '') +
+        (settings.trackProtein ? '<div><label>Protein</label><input type="number" value="'+numOrEmpty(entry.protein)+'" aria-label="Protein for '+itemLabel+'" onchange="updateFoodField('+idx+',\'protein\',parseFloat(this.value))"></div>' : '') +
+        (settings.trackFat ? '<div><label>Fat</label><input type="number" value="'+numOrEmpty(entry.fat)+'" aria-label="Fat for '+itemLabel+'" onchange="updateFoodField('+idx+',\'fat\',parseFloat(this.value))"></div>' : '') +
+      '</div>' +
+      '<div class="free-toggle-row"><label class="switch"><input type="checkbox" '+(entry.isFree?'checked':'')+' aria-label="Free food for '+itemLabel+'" onchange="updateFoodField('+idx+',\'isFree\',this.checked)"><span class="slider-track"></span></label><span style="font-size:0.82rem;color:var(--text-secondary);">Free food</span></div>' +
+    '</div>';
+  });
+  list.innerHTML = html;
+}
+function numOrEmpty(v){ return (v===null||v===undefined||isNaN(v)) ? '' : v; }
+function escapeAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function updateFoodField(idx, field, value){
+  var entry = draft.foodLog[idx];
+  if(!entry) return;
+  entry[field] = value;
+  if(entry._touched && (field==='calories'||field==='carbs'||field==='protein'||field==='fat')){
+    entry._touched[field] = true;
+  }
+  markDirty();
+  renderHero();
+  renderWeekStrip();
+  renderFlagCard();
+}
+function deleteFoodRow(idx){
+  if(!confirm('Delete this food entry?')) return;
+  draft.foodLog.splice(idx,1);
+  markDirty();
+  renderFoodLogList();
+  renderHero();
+  renderWeekStrip();
+  renderFlagCard();
+}
+
+/* ---- Add Food form: autofill / highlight / touched tracking ---- */
+function resetAddForm(){
+  newItemMemMatch = null;
+  newTouched = {calories:false, carbs:false, protein:false, fat:false};
+  var now = new Date();
+  document.getElementById('newTime').value = pad2(now.getHours())+':'+pad2(now.getMinutes());
+  document.getElementById('newItem').value = '';
+  document.getElementById('newQty').value = '1';
+  document.getElementById('newFree').checked = false;
+  ['newCalories','newCarbs','newProtein','newFat'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.value = '';
+    el.classList.remove('autofilled');
+  });
+  populateFoodMemoryDatalist();
+}
+function populateFoodMemoryDatalist(){
+  var dl = document.getElementById('foodMemoryList');
+  var html = '';
+  for(var key in foodMemory){
+    html += '<option value="'+escapeAttr(foodMemory[key].item)+'">';
+  }
+  dl.innerHTML = html;
+}
+function normalizeItemName(name){ return (name||'').trim().toLowerCase(); }
+function handleItemInput(){
+  var name = document.getElementById('newItem').value;
+  var key = normalizeItemName(name);
+  var match = foodMemory[key];
+  var qty = parseFloat(document.getElementById('newQty').value) || 1;
+  var fields = ['calories','carbs','protein','fat'];
+  if(match){
+    newItemMemMatch = match.perUnit;
+    newTouched = {calories:false, carbs:false, protein:false, fat:false};
+    document.getElementById('newFree').checked = !!match.isFreeDefault;
+    fields.forEach(function(f){
+      var el = document.getElementById('new'+capitalize(f));
+      var v = match.perUnit[f];
+      if(v !== null && v !== undefined){
+        el.value = Math.round(v * qty * 100) / 100;
+        el.classList.add('autofilled');
+      } else {
+        el.value = '';
+        el.classList.remove('autofilled');
+      }
+    });
+  } else {
+    newItemMemMatch = null;
+    fields.forEach(function(f){
+      document.getElementById('new'+capitalize(f)).classList.remove('autofilled');
+    });
+  }
+}
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function handleQtyInput(){
+  if(!newItemMemMatch) return;
+  var qty = parseFloat(document.getElementById('newQty').value) || 1;
+  ['calories','carbs','protein','fat'].forEach(function(f){
+    if(newTouched[f]) return;
+    var el = document.getElementById('new'+capitalize(f));
+    var v = newItemMemMatch[f];
+    if(v !== null && v !== undefined){
+      el.value = Math.round(v * qty * 100) / 100;
+    }
+  });
+}
+function markTouched(field){
+  newTouched[field] = true;
+  document.getElementById('new'+capitalize(field)).classList.remove('autofilled');
+}
+
+function addFoodEntry(){
+  var item = document.getElementById('newItem').value.trim();
+  if(!item){ showBanner('Please enter a food item name.', 'error'); return; }
+  var qty = parseFloat(document.getElementById('newQty').value) || 1;
+  var time = document.getElementById('newTime').value || (pad2(new Date().getHours())+':'+pad2(new Date().getMinutes()));
+  var isFree = document.getElementById('newFree').checked;
+  var entry = {
+    id: 'f_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+    time: time,
+    item: item,
+    qty: qty,
+    isFree: isFree,
+    calories: settings.trackCalories ? parseNumOrNull(document.getElementById('newCalories').value) : null,
+    carbs: settings.trackCarbs ? parseNumOrNull(document.getElementById('newCarbs').value) : null,
+    protein: settings.trackProtein ? parseNumOrNull(document.getElementById('newProtein').value) : null,
+    fat: settings.trackFat ? parseNumOrNull(document.getElementById('newFat').value) : null,
+    _touched: Object.assign({}, newTouched)
+  };
+  draft.foodLog.push(entry);
+  markDirty();
+  resetAddForm();
+  renderFoodLogList();
+  renderHero();
+  renderWeekStrip();
+  renderFlagCard();
+}
+function parseNumOrNull(v){ var n = parseFloat(v); return isNaN(n) ? null : n; }
+
+/* ---- Food memory update on Save ---- */
+function updateFoodMemoryFromLog(foodLog){
+  foodLog.forEach(function(entry){
+    var key = normalizeItemName(entry.item);
+    if(!key) return;
+    var qty = entry.qty || 1;
+    var existingMem = foodMemory[key];
+    var perUnit = existingMem ? Object.assign({}, existingMem.perUnit) : {calories:null,carbs:null,protein:null,fat:null};
+    var touched = entry._touched || {calories:true,carbs:true,protein:true,fat:true};
+    ['calories','carbs','protein','fat'].forEach(function(f){
+      if(touched[f]){
+        perUnit[f] = (entry[f] !== null && entry[f] !== undefined && qty) ? (entry[f] / qty) : perUnit[f];
+      } else if(!existingMem){
+        perUnit[f] = (entry[f] !== null && entry[f] !== undefined && qty) ? (entry[f] / qty) : null;
+      }
+    });
+    foodMemory[key] = { item: entry.item, isFreeDefault: !!entry.isFree, perUnit: perUnit };
+  });
+  saveJSON(FOODMEM_KEY, foodMemory);
+}
+
+/* ---- Save Today ---- */
+function saveToday(){
+  if(draft.isTwoThousandDay){
+    var weekDates = getWeekDates(getWeekStart(parseDateStr(viewedDate), settings.weekStartDay));
+    var conflict = null;
+    for(var i=0;i<weekDates.length;i++){
+      var d = weekDates[i];
+      if(d !== viewedDate && daysData[d] && daysData[d].isTwoThousandDay){ conflict = d; break; }
+    }
+    if(conflict){
+      showBanner('You\'ve already set ' + formatDisplayDate(conflict) + ' as your 2000-calorie day this week. Unflag it first if you want to move it.', 'error');
+      return;
+    }
+  }
+
+  var existing = daysData[viewedDate];
+  var nowIso = new Date().toISOString();
+  var cleanFoodLog = draft.foodLog.map(function(e){
+    return { id: e.id, time: e.time, item: e.item, qty: e.qty, isFree: !!e.isFree,
+      calories: e.calories === undefined ? null : e.calories,
+      carbs: e.carbs === undefined ? null : e.carbs,
+      protein: e.protein === undefined ? null : e.protein,
+      fat: e.fat === undefined ? null : e.fat };
+  });
+  var dayObj = {
+    date: viewedDate,
+    isTwoThousandDay: !!draft.isTwoThousandDay,
+    weightLb: (draft.weightLb === undefined) ? null : draft.weightLb,
+    foodLog: cleanFoodLog,
+    createdAt: existing ? existing.createdAt : nowIso,
+    updatedAt: nowIso
+  };
+  if(viewedDate === todayStr()){
+    // Today's fast record (if any) is managed live via Start/Stop Fast and is
+    // already written straight to daysData -- carry it over untouched so a
+    // normal Save (for food/weight edits) never clobbers or drops it.
+    if(existing && existing.fast) dayObj.fast = existing.fast;
+  } else {
+    // Past day: the fast record comes from the two plain time fields on the
+    // Fasting Window card and is only committed here, on Save.
+    var computedFast = computeFastField(viewedDate, draft.fastStartTime, draft.fastEndTime);
+    if(computedFast) dayObj.fast = computedFast;
+  }
+  daysData[viewedDate] = dayObj;
+  saveJSON(DAYS_KEY, daysData);
+
+  updateFoodMemoryFromLog(draft.foodLog);
+
+  if(settings.trackCalories){
+    // "Well done" trigger (replaces the old per-day GREEN score, which no longer
+    // exists now that there's no per-day target): fire whenever ctx.remainingToday
+    // is still >= 0 for the just-saved day. On a normal day, remainingToday IS the
+    // weekly 500 reserve remaining, so this means today's logging didn't push the
+    // weekly reserve negative. On the flagged day, remainingToday is 2000 minus
+    // that day's own calories, so this means the day stayed under its own 2000.
+    var ctx = computeDayContext(viewedDate);
+    if(ctx.remainingToday >= 0){
+      showBanner('Well done! You hit your target today.', 'success');
+    }
+  }
+
+  if(dayObj.weightLb !== null){
+    checkBracketCrossing(viewedDate, dayObj.weightLb);
+    recomputeMilestones(viewedDate);
+  }
+
+  draft = buildDraftFromDay(daysData[viewedDate]);
+  isDirty = false; // just saved -- draft now matches what's persisted, nothing unsaved anymore
+  renderToday();
+  showToast('Saved.');
+}
+
+/* =========================================================================
+   HISTORY TAB
+   ========================================================================= */
+function renderHistory(){
+  var list = document.getElementById('historyList');
+  var empty = document.getElementById('historyEmpty');
+  var dates = Object.keys(daysData).sort().reverse();
+  if(!dates.length){
+    list.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  var html = '';
+  dates.forEach(function(d){
+    var day = daysData[d];
+    var meta = '';
+    if(day.isTwoThousandDay) meta += '<span class="mini-badge flag">2000-cal day</span>';
+    if(settings.trackWeight && day.weightLb !== null && day.weightLb !== undefined){
+      meta += '<span class="mini-badge flag">'+formatWeightDisplay(day.weightLb, settings.weightUnit)+'</span>';
+    }
+    html += '<div class="item-row">' +
+      '<div class="left" onclick="openDayFromHistory(\''+d+'\')">' +
+        '<div class="date">'+formatDisplayDate(d)+'</div>' +
+        '<div class="meta">'+meta+'</div>' +
+      '</div>' +
+      '<button class="trash" onclick="deleteDay(\''+d+'\', event)">&#128465;</button>' +
+    '</div>';
+  });
+  list.innerHTML = html;
+}
+function openDayFromHistory(d){
+  if(!confirmDiscardDraftIfDirty()) return;
+  loadDay(d);
+  switchTab('today');
+}
+function deleteDay(d, ev){
+  if(ev) ev.stopPropagation();
+  if(!confirm('Delete all data for ' + formatDisplayDate(d) + '? This cannot be undone.')) return;
+  delete daysData[d];
+  saveJSON(DAYS_KEY, daysData);
+  recomputeMilestones(null);
+  if(viewedDate === d){ draft = buildDraftFromDay(null); isDirty = false; }
+  renderHistory();
+}
+
+/* =========================================================================
+   REPORTS TAB
+   ========================================================================= */
+function setReportRange(r){
+  currentReportRange = r;
+  document.querySelectorAll('#rangeSegmented button').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-range') === String(r));
+  });
+  renderReports();
+}
+function getRangeDates(){
+  // The earliest day with any saved data (a day is only saved once the user
+  // has logged something in it - food, weight, or the 2000-cal flag). Date
+  // keys are ISO 'YYYY-MM-DD' strings, so lexicographic sort/compare matches
+  // chronological order.
+  var allKeys = Object.keys(daysData).sort();
+  var earliestKey = allKeys.length ? allKeys[0] : null;
+
+  if(currentReportRange === 'all'){
+    if(!earliestKey) return [todayStr()];
+    return allKeys;
+  }
+
+  var n = currentReportRange;
+  var out = [];
+  var t = new Date();
+  for(var i=n-1;i>=0;i--){ out.push(dateStr(addDays(t,-i))); }
+
+  // Clamp the start of the range forward to the first day with real data so
+  // charts don't show a long stretch of empty leading days for new users.
+  // This only ever trims the range - if the user's data predates the
+  // computed start, the full n-day window is left untouched.
+  if(earliestKey && earliestKey > out[0]){
+    out = out.filter(function(d){ return d >= earliestKey; });
+  }
+  return out;
+}
+function destroyChart(name){ if(charts[name]){ charts[name].destroy(); charts[name] = null; } }
+
+function renderReports(){
+  var dates = getRangeDates();
+  var chartsAvailable = (typeof Chart !== 'undefined');
+  var unavailEl = document.getElementById('chartsUnavailable');
+
+  document.getElementById('calorieBreakdownChartCard').style.display = (chartsAvailable && settings.trackCalories) ? '' : 'none';
+  document.getElementById('totalCaloriesChartCard').style.display = (chartsAvailable && settings.trackCalories) ? '' : 'none';
+  document.getElementById('weightChartCard').style.display = (chartsAvailable && settings.trackWeight) ? '' : 'none';
+  var anyMacro = settings.trackCarbs || settings.trackProtein || settings.trackFat;
+  document.getElementById('macroChartCard').style.display = (chartsAvailable && anyMacro) ? '' : 'none';
+  document.getElementById('fastingHoursChartCard').style.display = (chartsAvailable && settings.trackFasting) ? '' : 'none';
+
+  if(!chartsAvailable){
+    // Chart.js failed to load (e.g. offline on first run) - skip chart rendering gracefully,
+    // but let the user know why the Reports tab looks empty instead of failing silently.
+    if(unavailEl) unavailEl.style.display = '';
+    return;
+  }
+  if(unavailEl) unavailEl.style.display = 'none';
+
+  if(settings.trackCalories){
+    var freeSeries = [], allowanceSeries = [], cheatSeries = [], totalSeries = [];
+    dates.forEach(function(d){
+      var day = daysData[d];
+      var dctx = computeDayContext(d);
+      var counted = Math.round(countedCalories(day));
+      freeSeries.push(Math.round(freeCalories(day)));
+      allowanceSeries.push(dctx.isFlaggedDay ? 0 : counted);
+      cheatSeries.push(dctx.isFlaggedDay ? counted : 0);
+      totalSeries.push(Math.round(sumMacroAll(day, 'calories')));
+    });
+
+    destroyChart('calorieBreakdown');
+    charts.calorieBreakdown = new Chart(document.getElementById('calorieBreakdownChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: dates, datasets: [
+        { label:'Free food', data:freeSeries, backgroundColor:'#1fa855' },
+        { label:'Weekly allowance', data:allowanceSeries, backgroundColor:'#0f9d8a' },
+        { label:'Cheat day', data:cheatSeries, backgroundColor:'#e2a213' }
+      ]},
+      options: { responsive:true, maintainAspectRatio:false,
+        scales:{ x:{stacked:true}, y:{stacked:true} },
+        plugins:{legend:{position:'bottom'}} }
+    });
+
+    destroyChart('totalCalories');
+    charts.totalCalories = new Chart(document.getElementById('totalCaloriesChart').getContext('2d'), {
+      type:'line',
+      data:{ labels:dates, datasets:[
+        { label:'Total calories', data:totalSeries, borderColor:'#0f9d8a', backgroundColor:'rgba(15,157,138,0.1)', tension:0.25 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}} }
+    });
+  }
+
+  if(settings.trackWeight){
+    var weightPoints = dates
+      .filter(function(d){ return daysData[d] && daysData[d].weightLb !== null && daysData[d].weightLb !== undefined; })
+      .map(function(d){
+        var lb = daysData[d].weightLb;
+        var v = settings.weightUnit === 'kg' ? Math.round(lb*LB_PER_KG*10)/10 : Math.round(lb*10)/10;
+        return { x:d, y:v };
+      });
+    destroyChart('weight');
+    charts.weight = new Chart(document.getElementById('weightChart').getContext('2d'), {
+      type:'line',
+      data:{ datasets:[{ label:'Weight ('+(settings.weightUnit==='kg'?'kg':'lb')+')', data:weightPoints, borderColor:'#0f9d8a', backgroundColor:'rgba(15,157,138,0.1)', spanGaps:true, tension:0.2 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ type:'category', labels:weightPoints.map(function(p){return p.x;}) } },
+        plugins:{legend:{position:'bottom'}} }
+    });
+  }
+
+  if(anyMacro){
+    var macroDatasets = [];
+    var colorMap = {carbs:'#e2a213', protein:'#0b5c8a', fat:'#e0453c'};
+    ['carbs','protein','fat'].forEach(function(m){
+      if(!settings['track'+capitalize(m)]) return;
+      var data = dates.map(function(d){ return Math.round(sumMacroAll(daysData[d], m)); });
+      macroDatasets.push({ label:capitalize(m)+' (g)', data:data, borderColor:colorMap[m], backgroundColor:colorMap[m], tension:0.25 });
+    });
+    destroyChart('macro');
+    charts.macro = new Chart(document.getElementById('macroChart').getContext('2d'), {
+      type:'line',
+      data:{ labels:dates, datasets:macroDatasets },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}} }
+    });
+  }
+
+  if(settings.trackFasting){
+    // Each fast's full duration is attributed entirely to the day it started
+    // (see the FASTING WINDOW section) -- so simply reading durationHours
+    // straight off each day's own record already respects that rule.
+    var fastingSeries = dates.map(function(d){
+      var day = daysData[d];
+      return (day && day.fast && day.fast.durationHours) ? Math.round(day.fast.durationHours*10)/10 : 0;
+    });
+    destroyChart('fastingHours');
+    charts.fastingHours = new Chart(document.getElementById('fastingHoursChart').getContext('2d'), {
+      type:'bar',
+      data:{ labels:dates, datasets:[
+        { label:'Fasting hours', data:fastingSeries, backgroundColor:'#0f9d8a' }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}} }
+    });
+  }
+}
+
+/* =========================================================================
+   SETTINGS TAB
+   ========================================================================= */
+function renderSettings(){
+  document.getElementById('settingTrackWeight').checked = settings.trackWeight;
+  document.getElementById('settingTrackCalories').checked = settings.trackCalories;
+  document.getElementById('settingTrackCarbs').checked = settings.trackCarbs;
+  document.getElementById('settingTrackProtein').checked = settings.trackProtein;
+  document.getElementById('settingTrackFat').checked = settings.trackFat;
+  document.getElementById('settingTrackFasting').checked = settings.trackFasting;
+  document.getElementById('settingWeekStart').value = String(settings.weekStartDay);
+  document.getElementById('settingWeightUnit').value = settings.weightUnit;
+  document.getElementById('settingFastingHours').value = settings.fastingWindowHours;
+
+  var allOff = !settings.trackCalories && !settings.trackCarbs && !settings.trackProtein && !settings.trackFat;
+  document.getElementById('allOffWarning').style.display = allOff ? '' : 'none';
+}
+function toggleSetting(key, value){
+  settings[key] = value;
+  saveJSON(SETTINGS_KEY, settings);
+  renderSettings();
+}
+function clearAllData(){
+  if(!confirm('This will permanently delete ALL logged days, weight, settings and food memory. Continue?')) return;
+  localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(DAYS_KEY);
+  localStorage.removeItem(FOODMEM_KEY);
+  localStorage.removeItem(MILESTONES_KEY);
+  localStorage.removeItem(WEEKLY_CELEBRATED_KEY);
+  localStorage.removeItem(ACTIVE_FAST_KEY);
+  localStorage.removeItem('slimline_fastingNotify_v1'); // legacy key from the removed auto-detect fasting system
+  initStorage();
+  viewedDate = todayStr();
+  draft = buildDraftFromDay(null);
+  isDirty = false;
+  resetAddForm();
+  populateFoodMemoryDatalist();
+  switchTab('today');
+  showToast('All data cleared.');
+}
+
+/* =========================================================================
+   EXPORT & SYNC TAB
+   ========================================================================= */
+function triggerDownload(filename, content, mime){
+  var blob = new Blob([content], {type: mime});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+function buildCSV(){
+  // Fasting fields (FastStartTime/FastEndTime/FastCrossedMidnight/FastDurationHours)
+  // are per-day columns, same convention as WeightLb/IsTwoThousandDay above --
+  // repeated on every food-log row for that day (or shown once if there's no
+  // food log). Days with no `fast` record just get blank values, not errors.
+  var rows = [['Date','WeightLb','IsTwoThousandDay','FastStartTime','FastEndTime','FastCrossedMidnight','FastDurationHours','Time','Item','Qty','IsFree','Calories','Carbs','Protein','Fat']];
+  Object.keys(daysData).sort().forEach(function(d){
+    var day = daysData[d];
+    var fast = day.fast || null;
+    var fastStart = (fast && fast.startTime) ? fast.startTime : '';
+    var fastEnd = (fast && fast.endTime) ? fast.endTime : '';
+    var fastCrossed = (fast && fast.crossedMidnight !== null && fast.crossedMidnight !== undefined) ? fast.crossedMidnight : '';
+    var fastDuration = (fast && fast.durationHours !== null && fast.durationHours !== undefined) ? fast.durationHours : '';
+    if(!day.foodLog.length){
+      rows.push([d, day.weightLb===null?'':day.weightLb, day.isTwoThousandDay, fastStart, fastEnd, fastCrossed, fastDuration, '', '', '', '', '', '', '', '']);
+    } else {
+      day.foodLog.forEach(function(e){
+        rows.push([d, day.weightLb===null?'':day.weightLb, day.isTwoThousandDay, fastStart, fastEnd, fastCrossed, fastDuration, e.time, e.item, e.qty, e.isFree,
+          e.calories===null?'':e.calories, e.carbs===null?'':e.carbs, e.protein===null?'':e.protein, e.fat===null?'':e.fat]);
+      });
+    }
+  });
+  return rows.map(function(r){
+    return r.map(function(v){
+      var s = String(v);
+      if(s.indexOf(',')>=0 || s.indexOf('"')>=0){ s = '"'+s.replace(/"/g,'""')+'"'; }
+      return s;
+    }).join(',');
+  }).join('\n');
+}
+function downloadCSV(){ triggerDownload('jps-health-tracker-export.csv', buildCSV(), 'text/csv'); }
+function buildFullExportObject(){
+  return {
+    exportedAt: new Date().toISOString(),
+    settings: settings, days: daysData, foodMemory: foodMemory,
+    milestones: milestones, weeklyCelebrated: weeklyCelebrated
+  };
+}
+function downloadJSON(){ triggerDownload('jps-health-tracker-export.json', JSON.stringify(buildFullExportObject(), null, 2), 'application/json'); }
+
+function buildSummaryText(){
+  var t = todayStr();
+  var lines = [];
+  lines.push('JP\'s Amazing Health Tracker — Summary (' + formatDisplayDate(t) + ')');
+  if(settings.trackCalories){
+    var ctx = computeDayContext(t);
+    var remainingLabel = ctx.isFlaggedDay ? '2000-calorie day' : 'weekly 500-calorie reserve';
+    lines.push('Remaining today: ' + Math.round(ctx.remainingToday) + ' calories (' + remainingLabel + ')');
+    lines.push('Week remaining: ' + Math.round(ctx.weeklyReserveRemaining) + ' / ' + NORMAL_POOL + ' (' + ctx.weeklyScore.label + ')');
+    lines.push(getCheatDayStatusText(ctx));
+  }
+  var latestWeightDate = Object.keys(daysData).filter(function(d){ return daysData[d].weightLb !== null && daysData[d].weightLb !== undefined; }).sort().pop();
+  if(latestWeightDate){
+    lines.push('Current weight: ' + formatWeightDisplay(daysData[latestWeightDate].weightLb, settings.weightUnit) + ' (as of ' + formatDisplayDate(latestWeightDate) + ')');
+  }
+  if(milestones.celebratedStoneCounts.length){
+    lines.push('Latest milestone: ' + Math.max.apply(null, milestones.celebratedStoneCounts) + ' stone lost since starting.');
+  }
+  return lines.join('\n');
+}
+function shareSummary(){
+  var text = buildSummaryText();
+  if(navigator.share){
+    navigator.share({ title:'JP\'s Amazing Health Tracker Summary', text:text }).catch(function(){
+      copyToClipboardFallback(text);
+    });
+  } else {
+    copyToClipboardFallback(text);
+  }
+}
+function copyToClipboardFallback(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ showToast('Copied to clipboard.'); })
+      .catch(function(){ showBanner('Could not copy automatically. Please copy manually.', 'error'); });
+  } else {
+    showBanner('Clipboard not available on this browser.', 'error');
+  }
+}
+function emailExport(){
+  var jsonStr = JSON.stringify(buildFullExportObject(), null, 2);
+  var file = null;
+  try{ file = new File([jsonStr], 'jps-health-tracker-export.json', {type:'application/json'}); }catch(e){ file = null; }
+  if(file && navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      navigator.share({ files:[file], title:'JP\'s Amazing Health Tracker Export', text:'Attached is my health tracker export.' })
+        .catch(function(err){
+          if(err && err.name === 'AbortError') return; // user cancelled - normal, no fallback needed
+          emailExportMailtoFallback(); // some other failure - don't fail silently
+        });
+    }catch(err){
+      emailExportMailtoFallback(); // synchronous throw from navigator.share - don't fail silently
+    }
+    return;
+  }
+  emailExportMailtoFallback();
+}
+function emailExportMailtoFallback(){
+  var subject = encodeURIComponent('JP\'s Amazing Health Tracker Export');
+  var body = encodeURIComponent(buildSummaryText());
+  window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+}
+function handleImportFile(ev){
+  var file = ev.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var parsed;
+    try{ parsed = JSON.parse(e.target.result); }catch(err){ showBanner('That file is not valid JSON.', 'error'); return; }
+    if(!parsed || typeof parsed !== 'object'){ showBanner('That file is not a valid backup file.', 'error'); return; }
+    if(!confirm('Replace ALL current data with this backup? This cannot be undone.')) return;
+    settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings || {});
+    daysData = parsed.days || {};
+    // Defensive normalization: a malformed/partial backup shouldn't crash later
+    // rendering/export code (e.g. buildCSV, renderHistory) that assumes these fields exist.
+    Object.keys(daysData).forEach(function(d){
+      var day = daysData[d];
+      if(!day || typeof day !== 'object'){ day = {}; }
+      if(!Array.isArray(day.foodLog)) day.foodLog = [];
+      if(day.weightLb === undefined) day.weightLb = null;
+      if(day.isTwoThousandDay === undefined) day.isTwoThousandDay = false;
+      if(!day.date) day.date = d;
+      daysData[d] = day;
+    });
+    foodMemory = parsed.foodMemory || {};
+    milestones = parsed.milestones || {highWaterMarkLb:0, celebratedStoneCounts:[]};
+    weeklyCelebrated = parsed.weeklyCelebrated || {};
+    saveJSON(SETTINGS_KEY, settings); saveJSON(DAYS_KEY, daysData); saveJSON(FOODMEM_KEY, foodMemory);
+    saveJSON(MILESTONES_KEY, milestones); saveJSON(WEEKLY_CELEBRATED_KEY, weeklyCelebrated);
+    viewedDate = todayStr();
+    draft = buildDraftFromDay(daysData[viewedDate] || null);
+    isDirty = false;
+    resetAddForm();
+    populateFoodMemoryDatalist();
+    showToast('Backup restored.');
+    switchTab('today');
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+}
+function renderExport(){
+  var supportsFileShare = false;
+  try{
+    var testFile = new File(['x'],'x.json',{type:'application/json'});
+    supportsFileShare = !!(navigator.canShare && navigator.canShare({files:[testFile]}));
+  }catch(e){ supportsFileShare = false; }
+  document.getElementById('emailFallbackHint').style.display = supportsFileShare ? 'none' : '';
+
+  var fsaAvailable = ('showSaveFilePicker' in window);
+  document.getElementById('fsaCard').style.display = fsaAvailable ? '' : 'none';
+}
+function fsaSync(){
+  if(!('showSaveFilePicker' in window)){ return; }
+  window.showSaveFilePicker({ suggestedName:'jps-health-tracker-export.json', types:[{description:'JSON', accept:{'application/json':['.json']}}] })
+    .then(function(handle){ return handle.createWritable(); })
+    .then(function(writable){ return writable.write(JSON.stringify(buildFullExportObject(), null, 2)).then(function(){ return writable.close(); }); })
+    .then(function(){ showToast('Saved to file.'); })
+    .catch(function(){ /* user cancelled */ });
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+document.addEventListener('DOMContentLoaded', function(){
+  initStorage();
+  viewedDate = todayStr();
+  draft = buildDraftFromDay(daysData[viewedDate] || null);
+  isDirty = false;
+  resetAddForm();
+  renderToday();
+  checkWeeklyCongrats();
+  setInterval(updateFastingStateText, 60000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) updateFastingStateText(); });
+});
+</script>
+</body>
+</html>
