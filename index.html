@@ -613,6 +613,25 @@ var ACTIVITY_MULTIPLIERS = { sedentary:1.2, light:1.375, moderate:1.55, very:1.7
 var CM_PER_INCH = 2.54;
 var DAY_TOLERANCE_RATIO = 0.10;
 
+// Parses a number typed into a height/weight field, tolerating a comma used as
+// a decimal separator (e.g. someone typing "5,11" meaning 5.11) instead of
+// silently truncating at the comma the way parseFloat does on its own.
+// A comma alongside a period is treated as a thousands separator and stripped.
+function parseNum(raw){
+  if(raw == null) return NaN;
+  var s = String(raw).trim();
+  if(s === '') return NaN;
+  if(s.indexOf(',') !== -1){
+    s = (s.indexOf('.') !== -1) ? s.replace(/,/g, '') : s.replace(',', '.');
+  }
+  return parseFloat(s);
+}
+// Plausibility bounds for onboarding/profile inputs -- catches unit-entry
+// mistakes and stray parsing issues before they reach the calorie formula.
+var HEIGHT_CM_MIN = 91, HEIGHT_CM_MAX = 244;   // ~3ft to ~8ft
+var WEIGHT_LB_MIN = 66, WEIGHT_LB_MAX = 660;   // ~30kg to ~300kg
+var MAINTENANCE_CAL_MIN = 800, MAINTENANCE_CAL_MAX = 6000;
+
 var SETTINGS_KEY = 'slimline_settings_v1';
 var DAYS_KEY = 'slimline_days_v1';
 var FOODMEM_KEY = 'slimline_foodMemory_v1';
@@ -2042,13 +2061,13 @@ function renderProfileHeightInputs(){
 }
 function onProfileHeightFtInChange(){
   var ftEl = document.getElementById('profileHeightFt'), inEl = document.getElementById('profileHeightIn');
-  var ft = parseFloat(ftEl.value), inch = parseFloat(inEl.value);
+  var ft = parseNum(ftEl.value), inch = parseNum(inEl.value);
   if(isNaN(ft) && isNaN(inch)){ updateProfileField('heightCm', null); return; }
   updateProfileField('heightCm', ftInToCm(isNaN(ft)?0:ft, isNaN(inch)?0:inch));
 }
 function onProfileHeightCmChange(){
   var el = document.getElementById('profileHeightCm');
-  var v = parseFloat(el.value);
+  var v = parseNum(el.value);
   updateProfileField('heightCm', isNaN(v) ? null : v);
 }
 function renderProfileWeightInputs(){
@@ -2079,13 +2098,13 @@ function renderProfileWeightInputs(){
 }
 function onProfileWeightStLbChange(){
   var stEl = document.getElementById('profileWeightSt'), lbEl = document.getElementById('profileWeightLbPart');
-  var st = parseFloat(stEl.value), lb = parseFloat(lbEl.value);
+  var st = parseNum(stEl.value), lb = parseNum(lbEl.value);
   if(isNaN(st) && isNaN(lb)){ updateProfileField('weightLb', null); return; }
   updateProfileField('weightLb', (isNaN(st)?0:st)*LB_PER_STONE + (isNaN(lb)?0:lb));
 }
 function onProfileWeightSingleChange(){
   var el = document.getElementById('profileWeightSingle');
-  var v = parseFloat(el.value);
+  var v = parseNum(el.value);
   if(isNaN(v)){ updateProfileField('weightLb', null); return; }
   updateProfileField('weightLb', (settings.weightUnit === 'kg') ? v / LB_PER_KG : v);
 }
@@ -2096,6 +2115,10 @@ function updateProfileField(field, value){
 function recalcMaintenanceEstimate(){
   var est = calcMaintenanceCalories(settings.profile);
   if(est === null){ showBanner('Fill in all profile fields to calculate an estimate.', 'error'); return; }
+  if(est < MAINTENANCE_CAL_MIN || est > MAINTENANCE_CAL_MAX){
+    showBanner('That result (' + est + ' cal) doesn\'t look right -- please check your height and weight in Your Profile.', 'error');
+    return;
+  }
   settings.maintenanceCaloriesEstimate = est;
   saveJSON(SETTINGS_KEY, settings);
   renderSettings();
@@ -2365,22 +2388,22 @@ function submitOnboardStep1(){
   var heightUnit = document.getElementById('obHeightUnit').value;
   var heightCm = null;
   if(heightUnit === 'ftin'){
-    var ft = parseFloat(document.getElementById('obHeightFt').value);
-    var inch = parseFloat(document.getElementById('obHeightIn').value);
+    var ft = parseNum(document.getElementById('obHeightFt').value);
+    var inch = parseNum(document.getElementById('obHeightIn').value);
     if(!isNaN(ft) || !isNaN(inch)){ heightCm = ftInToCm(isNaN(ft)?0:ft, isNaN(inch)?0:inch); }
   } else {
-    var cm = parseFloat(document.getElementById('obHeightCm').value);
+    var cm = parseNum(document.getElementById('obHeightCm').value);
     if(!isNaN(cm)) heightCm = cm;
   }
 
   var weightUnit = settings.weightUnit;
   var weightLb = null;
   if(weightUnit === 'stlb'){
-    var st = parseFloat(document.getElementById('obWeightSt').value);
-    var lb = parseFloat(document.getElementById('obWeightLb').value);
+    var st = parseNum(document.getElementById('obWeightSt').value);
+    var lb = parseNum(document.getElementById('obWeightLb').value);
     if(!isNaN(st) || !isNaN(lb)){ weightLb = (isNaN(st)?0:st)*LB_PER_STONE + (isNaN(lb)?0:lb); }
   } else {
-    var single = parseFloat(document.getElementById('obWeightSingle').value);
+    var single = parseNum(document.getElementById('obWeightSingle').value);
     if(!isNaN(single)){ weightLb = (weightUnit === 'kg') ? single / LB_PER_KG : single; }
   }
 
@@ -2388,7 +2411,9 @@ function submitOnboardStep1(){
   if(isNaN(age) || age < 18 || age > 120) errors.push('Enter a valid age (18-120).');
   if(sex !== 'male' && sex !== 'female') errors.push('Select a sex.');
   if(heightCm === null || heightCm <= 0) errors.push('Enter a valid height.');
+  else if(heightCm < HEIGHT_CM_MIN || heightCm > HEIGHT_CM_MAX) errors.push('That height looks out of range -- please check the number and unit.');
   if(weightLb === null || weightLb <= 0) errors.push('Enter a valid weight.');
+  else if(weightLb < WEIGHT_LB_MIN || weightLb > WEIGHT_LB_MAX) errors.push('That weight looks out of range -- please check the number and unit.');
   if(!activityLevel) errors.push('Select an activity level.');
 
   if(errors.length){
@@ -2402,9 +2427,20 @@ function submitOnboardStep1(){
   settings.heightUnit = heightUnit;
   saveJSON(SETTINGS_KEY, settings);
 
-  pendingProfile = { age:age, sex:sex, heightCm:heightCm, weightLb:weightLb, activityLevel:activityLevel };
-  var estimate = calcMaintenanceCalories(pendingProfile);
-  document.getElementById('obEstimateNumber').textContent = (estimate===null) ? '—' : estimate;
+  var candidateProfile = { age:age, sex:sex, heightCm:heightCm, weightLb:weightLb, activityLevel:activityLevel };
+  var estimate = calcMaintenanceCalories(candidateProfile);
+
+  // Final safety net: if the height/weight/age combination somehow still
+  // produces an implausible result, stop here rather than showing a
+  // nonsense calorie target.
+  if(estimate === null || estimate < MAINTENANCE_CAL_MIN || estimate > MAINTENANCE_CAL_MAX){
+    errEl.textContent = 'That result doesn\'t look right (' + (estimate===null?'—':estimate) + ' calories). Please double-check your height and weight entries.';
+    errEl.style.display = '';
+    return;
+  }
+
+  pendingProfile = candidateProfile;
+  document.getElementById('obEstimateNumber').textContent = estimate;
   document.getElementById('onboardStep1').classList.remove('active');
   document.getElementById('onboardStep2').classList.add('active');
   document.getElementById('onboardDot2').classList.add('done');
