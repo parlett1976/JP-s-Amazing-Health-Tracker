@@ -509,6 +509,7 @@
     </div>
     <button class="btn-secondary btn-block" onclick="recalcMaintenanceEstimate()">Recalculate Estimate</button>
     <div class="hint-text" id="maintenanceEstimateHint"></div>
+    <div class="hint-text" id="startingWeightHint"></div>
   </div>
 
   <div class="card">
@@ -621,7 +622,7 @@ var LB_PER_STONE = 14;
 // Bump this string whenever index.html is re-uploaded to GitHub Pages, so it's
 // possible to tell at a glance (topbar / onboarding / More tab) whether a
 // phone is showing the latest build or a stale cached copy.
-var APP_VERSION = '2.2.1 (2026-09-10)';
+var APP_VERSION = '2.3.0 (2026-09-10)';
 var LB_PER_KG = 0.45359237;
 var ACTIVITY_MULTIPLIERS = { sedentary:1.2, light:1.375, moderate:1.55, very:1.725, extra:1.9 };
 var CM_PER_INCH = 2.54;
@@ -686,7 +687,8 @@ var DEFAULT_SETTINGS = {
     sex: null,
     heightCm: null,
     weightLb: null,
-    activityLevel: null
+    activityLevel: null,
+    startingWeightLb: null
   },
   maintenanceCaloriesEstimate: null,
   dailyCalorieAllowance: null,
@@ -761,8 +763,16 @@ function initStorage(){
     // matters because clearAllData() calls initStorage() a second time in the
     // same session). Merge `profile` one level deeper to avoid that.
     var mergedProfile = Object.assign({}, DEFAULT_SETTINGS.profile, settings.profile || {});
+    // Backfill startingWeightLb for an already-onboarded user whose saved
+    // profile predates this field -- their current weight at upgrade time is
+    // the best available record of where they started, rather than leaving
+    // it null forever.
+    if(mergedProfile.startingWeightLb === null && mergedProfile.weightLb !== null){
+      mergedProfile.startingWeightLb = mergedProfile.weightLb;
+    }
     settings = Object.assign({}, DEFAULT_SETTINGS, settings);
     settings.profile = mergedProfile;
+    saveJSON(SETTINGS_KEY, settings);
   }
   daysData = loadJSON(DAYS_KEY, null);
   if(!daysData){ daysData = {}; saveJSON(DAYS_KEY, daysData); }
@@ -1348,6 +1358,35 @@ function saveWeightForDate(dstr, weightLb){
   renderWeightTab();
   // Today's own draft/hero doesn't depend on weight, but History's mini-badges
   // and the Today weight display (if ever re-added) should stay in sync.
+  if(weightLb !== null && dstr === todayStr()){ maybeOfferWeightSync(weightLb); }
+}
+// Offers to refresh the profile weight (and therefore the maintenance-calorie
+// estimate) whenever TODAY's weight is logged and differs meaningfully from
+// what's on file -- deliberately scoped to today only, mirroring the app's
+// existing rule that past-day edits (e.g. backfilling last Tuesday) never
+// retroactively touch "live" settings like this. Never touches
+// dailyCalorieAllowance -- that's a user-chosen target (e.g. a deliberate
+// deficit) and must not get silently overwritten just because the estimate
+// moved.
+function maybeOfferWeightSync(newWeightLb){
+  var p = settings.profile;
+  if(!p || p.age==null || !p.sex || p.heightCm==null || p.weightLb==null || !p.activityLevel) return;
+  if(Math.abs(newWeightLb - p.weightLb) < 0.5) return; // rounding noise, not a real change
+  var unit = settings.weightUnit;
+  var oldDisplay = formatWeightDisplay(p.weightLb, unit);
+  var newDisplay = formatWeightDisplay(newWeightLb, unit);
+  if(!confirm('Update your saved weight (' + oldDisplay + ') to ' + newDisplay + ' and recalculate your maintenance-calorie estimate? Your starting weight stays on record either way.')) return;
+  var updatedProfile = Object.assign({}, p, { weightLb: newWeightLb });
+  var est = calcMaintenanceCalories(updatedProfile);
+  if(est === null || est < MAINTENANCE_CAL_MIN || est > MAINTENANCE_CAL_MAX){
+    showBanner('New estimate looked out of range, so your profile weight was left unchanged.', 'error');
+    return;
+  }
+  settings.profile = updatedProfile;
+  settings.maintenanceCaloriesEstimate = est;
+  saveJSON(SETTINGS_KEY, settings);
+  showBanner('Profile weight updated. New maintenance estimate: ' + est + ' cal/day (your Daily Allowance of ' + settings.dailyCalorieAllowance + ' cal is unchanged).', 'success');
+  if(typeof renderSettings === 'function') renderSettings();
 }
 function navWeightDay(delta){
   var d = addDays(parseDateStr(weightViewedDate), delta);
@@ -2047,6 +2086,12 @@ function renderSettings(){
   }
   document.getElementById('maintenanceEstimateHint').textContent = estHint;
 
+  var startEl = document.getElementById('startingWeightHint');
+  var startLb = settings.profile.startingWeightLb;
+  startEl.textContent = (startLb === null || startLb === undefined)
+    ? ''
+    : 'Starting weight (recorded at setup): ' + formatWeightDisplay(startLb, settings.weightUnit) + '.';
+
   var allOff = !settings.trackCalories && !settings.trackCarbs && !settings.trackProtein && !settings.trackFat;
   document.getElementById('allOffWarning').style.display = allOff ? '' : 'none';
 }
@@ -2461,6 +2506,11 @@ function submitOnboardStep1(){
 }
 function completeOnboarding(){
   settings.profile = pendingProfile;
+  // Record the weight entered at signup permanently -- this never changes
+  // again even as profile.weightLb gets refreshed later (see
+  // maybeOfferWeightSync()), so "since you started" comparisons and any
+  // future "starting weight" display always have the true original figure.
+  settings.profile.startingWeightLb = pendingProfile.weightLb;
   settings.maintenanceCaloriesEstimate = calcMaintenanceCalories(pendingProfile);
   settings.dailyCalorieAllowance = settings.maintenanceCaloriesEstimate;
   settings.cheatDayCalorieLimit = Math.round(settings.dailyCalorieAllowance * 1.75);
