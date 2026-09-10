@@ -49,6 +49,8 @@
   .app-topbar{position:sticky;top:0;z-index:50;background:rgba(242,242,247,0.92);backdrop-filter:blur(10px);
     padding:8px 16px;border-bottom:1px solid var(--border);text-align:center;}
   .app-topbar .brand{font-weight:700;color:var(--accent-dark);font-size:0.85rem;letter-spacing:0.02em;}
+  .app-version{font-size:0.68rem;color:var(--text-secondary);font-weight:400;letter-spacing:0.01em;margin-left:6px;}
+  .onboard-version{font-size:0.75rem;color:var(--text-secondary);margin-top:2px;}
   #bannerContainer{position:fixed;top:44px;left:0;right:0;z-index:200;display:flex;flex-direction:column;gap:6px;
     padding:0 12px;pointer-events:none;}
   .banner{pointer-events:auto;border-radius:14px;padding:12px 14px;box-shadow:0 4px 14px rgba(0,0,0,0.15);
@@ -183,10 +185,16 @@
     cursor:pointer;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;}
   .food-row .del-btn svg{width:16px;height:16px;}
 
-  .weight-inputs{display:flex;gap:10px;align-items:center;}
-  .weight-inputs input{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--border);
+  .weight-inputs{display:flex;gap:10px;align-items:center;max-width:100%;}
+  /* min-width:0 overrides the flex-item default of min-width:auto, which
+     floors at the input's intrinsic content width (~170px+ for a bare
+     <input type=number>) and refuses to shrink below it even with flex:1 --
+     that's what was letting the second ft/in or st/lb box get pushed past
+     the card's right edge on narrower viewports instead of both boxes
+     sharing the row evenly. */
+  .weight-inputs input{flex:1;min-width:0;min-height:44px;border-radius:10px;border:1px solid var(--border);
     padding:0 10px;font-size:1rem;text-align:center;}
-  .weight-inputs .unit-lbl{font-size:0.8rem;color:var(--text-secondary);}
+  .weight-inputs .unit-lbl{font-size:0.8rem;color:var(--text-secondary);flex:0 0 auto;}
 
   .fasting-state{font-weight:700;font-size:1.05rem;}
   .fasting-state.fasting{color:var(--danger);}
@@ -268,12 +276,13 @@
 </head>
 <body>
 
-<div class="app-topbar"><span class="brand">JP's Amazing Health Tracker</span></div>
+<div class="app-topbar"><span class="brand">JP's Amazing Health Tracker</span><span class="app-version" id="appVersionTag"></span></div>
 <div id="moreBackBar" style="display:none;padding:6px 14px;"><button class="btn-secondary back-btn" onclick="backToMore()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>Back to More</button></div>
 <div id="bannerContainer" aria-live="polite" aria-atomic="false"></div>
 
 <div class="onboarding-overlay" id="onboardingOverlay">
   <header class="page-header"><h1>Welcome</h1><div class="sub">Let's set up your daily calorie target.</div>
+    <div class="onboard-version" id="onboardVersionTag"></div>
     <div class="onboard-progress" id="onboardProgress" aria-hidden="true">
       <span class="dot done" id="onboardDot1"></span><span class="dot" id="onboardDot2"></span>
     </div>
@@ -572,6 +581,7 @@
     <div class="item-row" onclick="openMoreSection('settings')"><div class="left"><div class="date">Settings</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
     <div class="item-row" onclick="openMoreSection('export')"><div class="left"><div class="date">Export &amp; Sync</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
   </div>
+  <div class="hint-text" id="moreVersionTag" style="text-align:center;margin-top:18px;"></div>
 </div>
 
 <!-- Floating Save action bar: only shown while the Today tab is active
@@ -608,6 +618,10 @@
    CONSTANTS
    ========================================================================= */
 var LB_PER_STONE = 14;
+// Bump this string whenever index.html is re-uploaded to GitHub Pages, so it's
+// possible to tell at a glance (topbar / onboarding / More tab) whether a
+// phone is showing the latest build or a stale cached copy.
+var APP_VERSION = '2.2.1 (2026-09-10)';
 var LB_PER_KG = 0.45359237;
 var ACTIVITY_MULTIPLIERS = { sedentary:1.2, light:1.375, moderate:1.55, very:1.725, extra:1.9 };
 var CM_PER_INCH = 2.54;
@@ -2477,7 +2491,14 @@ function proceedToApp(){
   setInterval(updateFastingStateText, 60000);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) updateFastingStateText(); });
 }
+function renderVersionTags(){
+  var v = 'v' + APP_VERSION;
+  var a = document.getElementById('appVersionTag'); if(a) a.textContent = v;
+  var b = document.getElementById('onboardVersionTag'); if(b) b.textContent = v;
+  var c = document.getElementById('moreVersionTag'); if(c) c.textContent = 'App version ' + v;
+}
 document.addEventListener('DOMContentLoaded', function(){
+  renderVersionTags();
   initStorage();
   // The real user's on-disk settings object predates `onboardingComplete`
   // entirely -- the same Object.assign-with-defaults merge every other
