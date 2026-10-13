@@ -73,7 +73,6 @@
      extra bottom padding on TOP of body's tabbar reserve so the last card
      (Add Food) never sits underneath the floating Save bar. No other tab has
      a bottom-pinned primary action, so none of them need this. */
-  #tab-today{padding-bottom:calc(var(--savebar-height) + 16px);}
   .page-header{padding:6px 2px 14px;}
   .page-header h1{font-size:1.9rem;font-weight:800;margin:0;}
   .page-header h1.amber{color:var(--amber-header);}
@@ -259,6 +258,30 @@
 
   .empty-state{text-align:center;color:var(--text-secondary);padding:30px 10px;font-size:0.9rem;}
 
+  /* ---- v2.4.0 front page ---- */
+  .day-title{font-size:1.6rem;font-weight:800;margin:0 0 10px;line-height:1.15;}
+  .day-title.amber{color:var(--amber-header);}
+  .hero-target{color:var(--text-secondary);font-size:0.85rem;margin-top:8px;line-height:1.35;}
+  .cheat-btn{display:block;width:100%;margin-top:18px;min-height:56px;border-radius:14px;
+    border:2px solid var(--warning);background:#fff;color:#8a6410;font-size:1.15rem;font-weight:800;cursor:pointer;
+    transition:background 0.15s,color 0.15s;}
+  .cheat-btn.on{background:var(--warning);color:#1c1c1e;border-color:var(--warning);}
+  .add-food-item label{display:block;font-size:0.95rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+  .add-food-item input{width:100%;min-height:64px;border-radius:12px;border:2px solid var(--border);
+    padding:0 14px;font-size:1.25rem;background:#fff;}
+  .add-food-item input:focus{border-color:var(--accent);outline:none;}
+  .confirm-row{display:flex;gap:10px;margin-top:12px;}
+  .confirm-row .btn-primary{margin-bottom:0;flex:1;}
+  .confirm-row .btn-secondary{flex:0 0 auto;}
+  .saved-note{font-weight:700;color:var(--accent-dark);margin-top:10px;font-size:0.95rem;}
+  /* Food Log page: item name gets its own full-width line, numbers below */
+  #tab-food .food-row .line{flex-wrap:wrap;overflow-x:visible;}
+  #tab-food .food-row input.fr-item{flex:1 1 100%;order:-1;font-size:1.05rem;min-height:44px;}
+  #tab-food .food-row input.fr-time{flex:1 1 90px;}
+  #tab-food .food-row input.fr-num{flex:1 1 48px;}
+  .totals-line{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;
+    border-top:1px solid var(--border);padding-top:10px;margin-top:6px;}
+
   /* Onboarding overlay -- sits above everything else (tab bar z-index:100,
      save bar z-index:140) as an opaque full-screen panel, so those fixed
      bottom bars are fully covered and untappable underneath it while
@@ -316,22 +339,17 @@
     <div class="card hero-card">
       <div class="hero-number" id="obEstimateNumber">&mdash;</div>
       <div class="hero-label">estimated maintenance calories/day</div>
-      <div class="hint-text" style="margin-top:10px;">This is a population-average estimate (Mifflin-St Jeor equation), typically accurate to within about 10% for most adults &mdash; individual metabolism varies. Your Daily Allowance is set to this number now; adjust it any time in Settings. Not medical advice &mdash; check with a doctor or dietitian if you have a medical condition, are pregnant or breastfeeding, or want precise guidance.</div>
+      <div class="hint-text" style="margin-top:10px;">This is a population-average estimate (Mifflin-St Jeor equation), typically accurate to within about 10% for most adults &mdash; individual metabolism varies. On normal days your target will be this minus 500 (you can change the 500 in Settings); on cheat days it's this number. It updates automatically as you log your weight. Not medical advice &mdash; check with a doctor or dietitian if you have a medical condition, are pregnant or breastfeeding, or want precise guidance.</div>
     </div>
     <button class="btn-primary btn-block" onclick="completeOnboarding()">Start Tracking</button>
   </div>
 </div>
 
-<!-- ===================== TAB 1: TODAY ===================== -->
+<!-- ===================== TAB 1: TODAY (front page) ===================== -->
 <div id="tab-today" class="tab-content active">
-  <header class="page-header">
-    <h1 id="todayHeaderTitle">Today</h1>
-    <div class="sub" id="todayHeaderSub"></div>
-  </header>
-
   <div class="card">
-    <div id="dateNavDayLabel" style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;"></div>
-    <div class="date-nav">
+    <h1 class="day-title" id="dateNavDayLabel"></h1>
+    <div class="date-nav" style="margin-bottom:0;">
       <button onclick="navDay(-1)" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
       <input type="date" id="dateNavInput" aria-label="Select date" onchange="onDateNavInput(this.value)">
       <button onclick="navDay(1)" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
@@ -340,29 +358,58 @@
 
   <div class="card hero-card" id="heroCard"></div>
 
-  <div class="card" id="cheatDayCard"></div>
-
-  <div class="card" id="fastingCard"></div>
-
-  <div class="card" id="foodLogCard">
-    <h3>Food Log</h3>
-    <div id="foodLogList"></div>
-    <div class="empty-state" id="foodLogEmpty" style="display:none;">No food logged for this day yet.</div>
-  </div>
-
   <div class="card" id="addFoodCard">
     <h3>Add Food</h3>
-    <div class="form-row"><label for="newTime">Time</label><input type="time" id="newTime"></div>
-    <div class="form-row"><label for="newItem">Item</label>
-      <input type="text" id="newItem" list="foodMemoryList" oninput="handleItemInput()">
+    <div class="add-food-item">
+      <label for="newItem">What did you eat?</label>
+      <input type="text" id="newItem" list="foodMemoryList" oninput="handleItemInput()" autocomplete="off" enterkeyhint="done">
       <datalist id="foodMemoryList"></datalist>
     </div>
     <div class="form-row"><label for="newQty">Qty</label><input type="number" id="newQty" value="1" min="0" step="0.5" oninput="handleQtyInput()"></div>
-    <div class="form-row macro-field" data-macro="calories"><label for="newCalories">Calories</label><input type="number" id="newCalories" oninput="markTouched('calories')"></div>
-    <div class="form-row macro-field" data-macro="carbs"><label for="newCarbs">Carbs (g)</label><input type="number" id="newCarbs" oninput="markTouched('carbs')"></div>
-    <div class="form-row macro-field" data-macro="protein"><label for="newProtein">Protein (g)</label><input type="number" id="newProtein" oninput="markTouched('protein')"></div>
-    <div class="form-row macro-field" data-macro="fat"><label for="newFat">Fat (g)</label><input type="number" id="newFat" oninput="markTouched('fat')"></div>
-    <button class="btn-secondary btn-block" onclick="addFoodEntry()" style="margin-top:8px;">+ Add to log</button>
+    <div class="form-row macro-field" data-macro="calories"><label for="newCalories">Calories</label><input type="number" id="newCalories" inputmode="decimal" oninput="markTouched('calories')"></div>
+    <div class="form-row macro-field" data-macro="carbs"><label for="newCarbs">Carbs (g)</label><input type="number" id="newCarbs" inputmode="decimal" oninput="markTouched('carbs')"></div>
+    <div class="form-row macro-field" data-macro="protein"><label for="newProtein">Protein (g)</label><input type="number" id="newProtein" inputmode="decimal" oninput="markTouched('protein')"></div>
+    <div class="form-row macro-field" data-macro="fat"><label for="newFat">Fat (g)</label><input type="number" id="newFat" inputmode="decimal" oninput="markTouched('fat')"></div>
+    <div class="form-row"><label for="newTime">Time</label><input type="time" id="newTime"></div>
+    <button class="btn-primary btn-block" onclick="addFoodEntry()" style="margin-top:8px;margin-bottom:0;">+ Add to log</button>
+  </div>
+</div>
+
+<!-- ===================== TAB: FOOD LOG ===================== -->
+<div id="tab-food" class="tab-content">
+  <header class="page-header"><h1>Food Log</h1></header>
+  <div class="card">
+    <div id="foodDateNavDayLabel" style="font-weight:700;font-size:1.05rem;margin-bottom:8px;"></div>
+    <div class="date-nav" style="margin-bottom:0;">
+      <button onclick="navDay(-1)" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+      <input type="date" id="foodDateNavInput" aria-label="Select date" onchange="onDateNavInput(this.value)">
+      <button onclick="navDay(1)" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+    </div>
+  </div>
+  <div class="card" id="foodLogCard">
+    <h3>Food eaten</h3>
+    <div id="foodLogList"></div>
+    <div class="empty-state" id="foodLogEmpty" style="display:none;">No food logged for this day yet.</div>
+    <div id="foodLogTotals"></div>
+  </div>
+</div>
+
+<!-- ===================== TAB: FASTING ===================== -->
+<div id="tab-fasting" class="tab-content">
+  <header class="page-header"><h1>Fasting Window</h1></header>
+  <div class="card" id="fastingNotTracked" style="display:none;">
+    <div class="empty-state">Fasting tracking is off &mdash; enable it in Settings.</div>
+  </div>
+  <div id="fastingTabBody">
+    <div class="card">
+      <div id="fastDateNavDayLabel" style="font-weight:700;font-size:1.05rem;margin-bottom:8px;"></div>
+      <div class="date-nav" style="margin-bottom:0;">
+        <button onclick="navFastDay(-1)" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+        <input type="date" id="fastDateNavInput" aria-label="Select date" onchange="onFastDateNavInput(this.value)">
+        <button onclick="navFastDay(1)" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+      </div>
+    </div>
+    <div class="card" id="fastingCard"></div>
   </div>
 </div>
 
@@ -481,7 +528,7 @@
       <label class="switch"><input type="checkbox" id="settingTrackFasting" aria-label="Track Fasting" onchange="toggleSetting('trackFasting',this.checked)"><span class="slider-track"></span></label></div>
     <div class="row-flex"><label for="settingTrackSteps">Track Steps</label>
       <label class="switch"><input type="checkbox" id="settingTrackSteps" aria-label="Track Steps" onchange="toggleSetting('trackSteps',this.checked)"><span class="slider-track"></span></label></div>
-    <div class="hint-text">Calorie budgeting uses your Daily Allowance (and Cheat-Day Limit on flagged days) &mdash; set both below.</div>
+    
   </div>
 
   <div class="card">
@@ -507,19 +554,19 @@
         <option value="extra">Extremely Active (hard exercise + physical job)</option>
       </select>
     </div>
-    <button class="btn-secondary btn-block" onclick="recalcMaintenanceEstimate()">Recalculate Estimate</button>
+    <button class="btn-primary btn-block" onclick="confirmProfileHeightWeight()" style="margin-top:6px;">Confirm height &amp; weight</button>
+    <div class="hint-text">Profile weight is only used until you log weights on the Weight tab.</div>
     <div class="hint-text" id="maintenanceEstimateHint"></div>
     <div class="hint-text" id="startingWeightHint"></div>
   </div>
 
   <div class="card">
     <h3>Calorie Budget</h3>
-    <div class="form-row"><label for="settingDailyAllowance">Daily Allowance</label>
-      <input type="number" id="settingDailyAllowance" min="0" step="1" onchange="toggleSetting('dailyCalorieAllowance',parseInt(this.value,10)||null)">
+    <div class="form-row"><label for="settingDeficit">Daily deficit (cal)</label>
+      <input type="number" id="settingDeficit" min="0" max="1500" step="50" inputmode="numeric" onchange="onDeficitChange(this.value)">
     </div>
-    <div class="form-row"><label for="settingCheatDayLimit">Cheat-Day Limit</label>
-      <input type="number" id="settingCheatDayLimit" min="0" step="1" onchange="toggleSetting('cheatDayCalorieLimit',parseInt(this.value,10)||null)">
-    </div>
+    <div class="hint-text">Normal days = maintenance calories minus this deficit. Cheat days = maintenance calories (enough to hold your weight). Maintenance is worked out from the weight you logged that day (or your most recent weigh-in before it).</div>
+    <div class="hint-text" id="budgetReadout" style="font-weight:700;color:var(--text);font-size:0.9rem;"></div>
   </div>
 
   <div class="card">
@@ -578,6 +625,8 @@
 <div id="tab-more" class="tab-content">
   <header class="page-header"><h1>More</h1></header>
   <div class="list">
+    <div class="item-row" onclick="openMoreSection('fasting')"><div class="left"><div class="date">Fasting Window</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
+    <div class="item-row" onclick="openMoreSection('steps')"><div class="left"><div class="date">Steps</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
     <div class="item-row" onclick="openMoreSection('history')"><div class="left"><div class="date">History</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
     <div class="item-row" onclick="openMoreSection('settings')"><div class="left"><div class="date">Settings</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
     <div class="item-row" onclick="openMoreSection('export')"><div class="left"><div class="date">Export &amp; Sync</div></div><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg></span></div>
@@ -585,20 +634,11 @@
   <div class="hint-text" id="moreVersionTag" style="text-align:center;margin-top:18px;"></div>
 </div>
 
-<!-- Floating Save action bar: only shown while the Today tab is active
-     (toggled by switchTab()). Lives outside every .tab-content wrapper and
-     directly above the tab bar, in normal fixed-position sibling order, so
-     it is never nested inside anything that could establish a stray
-     containing block for it. -->
-<div class="save-bar visible" id="todaySaveBar">
-  <button class="btn-primary" onclick="saveToday()">Save</button>
-</div>
-
 <!-- Bottom tab bar -->
 <nav class="tabbar">
   <button data-tab="today" class="active" onclick="switchTab('today')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line><line x1="4.2" y1="4.2" x2="6.3" y2="6.3"></line><line x1="17.7" y1="17.7" x2="19.8" y2="19.8"></line><line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line><line x1="4.2" y1="19.8" x2="6.3" y2="17.7"></line><line x1="17.7" y1="6.3" x2="19.8" y2="4.2"></line></svg></span>Today</button>
+  <button data-tab="food" onclick="switchTab('food')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"></line><line x1="9" y1="12" x2="20" y2="12"></line><line x1="9" y1="18" x2="20" y2="18"></line><circle cx="4.5" cy="6" r="1"></circle><circle cx="4.5" cy="12" r="1"></circle><circle cx="4.5" cy="18" r="1"></circle></svg></span>Food Log</button>
   <button data-tab="weight" onclick="switchTab('weight')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="12" cy="13" r="3.2"></circle><line x1="12" y1="13" x2="14.2" y2="10.6"></line><line x1="8" y1="6.5" x2="10" y2="6.5"></line></svg></span>Weight</button>
-  <button data-tab="steps" onclick="switchTab('steps')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3c-1.4 0-2.4 1.3-2.4 3s.9 3.4 0 5-1 4 .6 4.6c1.2.5 2.2-.5 2.4-1.8.2-1.5-.2-2.7.4-4.3.5-1.4 1-2.7 1-3.9C10 4.3 9.3 3 8 3z"></path><path d="M16.4 9c-1.4 0-2.4 1.3-2.4 3s.9 3.4 0 5-1 4 .6 4.6c1.2.5 2.2-.5 2.4-1.8.2-1.5-.2-2.7.4-4.3.5-1.4 1-2.7 1-3.9 0-1.6-.7-2.9-2-2.9z"></path></svg></span>Steps</button>
   <button data-tab="reports" onclick="switchTab('reports')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="12"></line><line x1="12" y1="20" x2="12" y2="6"></line><line x1="19" y1="20" x2="19" y2="15"></line><line x1="3" y1="20" x2="21" y2="20"></line></svg></span>Reports</button>
   <button data-tab="more" onclick="switchTab('more')"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></span>More</button>
 </nav>
@@ -622,7 +662,7 @@ var LB_PER_STONE = 14;
 // Bump this string whenever index.html is re-uploaded to GitHub Pages, so it's
 // possible to tell at a glance (topbar / onboarding / More tab) whether a
 // phone is showing the latest build or a stale cached copy.
-var APP_VERSION = '2.3.0 (2026-09-10)';
+var APP_VERSION = '2.4.0 (2026-10-13)';
 var LB_PER_KG = 0.45359237;
 var ACTIVITY_MULTIPLIERS = { sedentary:1.2, light:1.375, moderate:1.55, very:1.725, extra:1.9 };
 var CM_PER_INCH = 2.54;
@@ -680,6 +720,9 @@ var DEFAULT_SETTINGS = {
   trackFasting: true,
   trackSteps: false,
   fastingWindowHours: 16,
+  // v2.4.0: normal-day target = maintenance (from that day's weight) minus
+  // this; cheat-day target = maintenance.
+  calorieDeficit: 500,
 
   onboardingComplete: false,
   profile: {
@@ -885,16 +928,15 @@ var newTouched = { calories:false, carbs:false, protein:false, fat:false };
 // away from Today) behind a confirm() so an unsaved draft is never silently
 // discarded.
 var isDirty = false;
+// v2.4.0: every change is saved straight away (no Save button), so moving
+// between the Today and Food Log pages never loses anything.
 function markDirty(){
-  isDirty = true;
-  persistLiveDraft();
+  commitDraft();
+  isDirty = false;
 }
 // Returns true if it's OK to proceed with discarding the current draft
 // (either nothing unsaved, or the user confirmed leaving anyway).
-function confirmDiscardDraftIfDirty(){
-  if(!isDirty) return true;
-  return confirm('You have unsaved changes on this day. Leave without saving?');
-}
+function confirmDiscardDraftIfDirty(){ return true; }
 
 // ---- Live-draft crash/reload recovery (see LIVEDRAFT_KEY above) ----
 function persistLiveDraft(){
@@ -911,9 +953,13 @@ function clearLiveDraft(){
 function loadDraftForDate(dstr){
   var liveBackup = loadJSON(LIVEDRAFT_KEY, null);
   if(liveBackup && liveBackup.date === dstr && liveBackup.draft){
+    // Unsaved work left over from v2.3.0 -- save it properly now.
     draft = liveBackup.draft;
-    isDirty = true;
-    showBanner('Restored unsaved changes from your last session for ' + formatDisplayDate(dstr) + ' — remember to tap Save.', 'warning');
+    if(!Array.isArray(draft.foodLog)) draft.foodLog = [];
+    commitDraft();
+    clearLiveDraft();
+    isDirty = false;
+    showBanner('Recovered unsaved food from your last session for ' + formatDisplayDate(dstr) + '.', 'info');
     return;
   }
   draft = buildDraftFromDay(daysData[dstr] || null);
@@ -959,7 +1005,7 @@ function openMoreSection(name){ switchTab(name); }
 // Tab-content divs that are only ever reached via the More list, not their
 // own bottom-bar button -- when one of these is active, the More button is
 // highlighted instead and the "Back to More" bar is shown.
-var MORE_SUBTABS = ['history','settings','export'];
+var MORE_SUBTABS = ['fasting','steps','history','settings','export'];
 
 function switchTab(name){
   // Guard: leaving the Today tab for a different tab while the draft has
@@ -988,9 +1034,10 @@ function switchTab(name){
 
   // The floating Save bar only belongs to Today -- no other tab has a
   // persistent bottom primary action, so it's hidden everywhere else.
-  document.getElementById('todaySaveBar').classList.toggle('visible', name === 'today');
 
   if(name==='today') renderToday();
+  if(name==='food') renderFoodTab();
+  if(name==='fasting') renderFastingTab();
   if(name==='weight') renderWeightTab();
   if(name==='steps') renderStepsTab();
   if(name==='history') renderHistory();
@@ -1062,14 +1109,51 @@ function computeDayStatus(remaining, target){
   return {level:'RED', label:'Over Budget'};
 }
 
+// Weight in effect on a given day: that day's logged weight, else the most
+// recent weigh-in before it, else the profile weight from setup.
+function getWeightForDate(dstr){
+  var day = daysData[dstr];
+  if(day && day.weightLb !== null && day.weightLb !== undefined) return { lb: day.weightLb, date: dstr };
+  var best = null;
+  for(var d in daysData){
+    var w = daysData[d] && daysData[d].weightLb;
+    if(w !== null && w !== undefined && d < dstr && (best === null || d > best)) best = d;
+  }
+  if(best) return { lb: daysData[best].weightLb, date: best };
+  var p = settings.profile;
+  if(p && p.weightLb !== null && p.weightLb !== undefined) return { lb: p.weightLb, date: null };
+  return null;
+}
+function getDeficit(){
+  var d = settings.calorieDeficit;
+  return (typeof d === 'number' && !isNaN(d) && d >= 0) ? d : 500;
+}
+// Returns {maintenance, normalTarget, cheatTarget, weight} for a date, or
+// null when the profile isn't complete enough to calculate one.
+function computeBudgetForDate(dstr){
+  var w = getWeightForDate(dstr);
+  if(!w) return null;
+  var prof = Object.assign({}, settings.profile, { weightLb: w.lb });
+  var maint = calcMaintenanceCalories(prof);
+  if(maint === null || maint < MAINTENANCE_CAL_MIN || maint > MAINTENANCE_CAL_MAX) return null;
+  return { maintenance: maint, normalTarget: Math.max(0, maint - getDeficit()), cheatTarget: maint, weight: w };
+}
+
 function computeDayContext(dstr){
   var eff = getEffectiveDay(dstr);
   var isCheatDay = !!(eff && eff.isCheatDay);
-  var target = isCheatDay ? settings.cheatDayCalorieLimit : settings.dailyCalorieAllowance;
-  var consumed = sumMacroAll(eff, 'calories'); // ALL logged food counts now -- no isFree split
+  var budget = computeBudgetForDate(dstr);
+  var target;
+  if(budget){
+    target = isCheatDay ? budget.cheatTarget : budget.normalTarget;
+  } else {
+    // Profile incomplete -- fall back to the old fixed numbers if present.
+    target = isCheatDay ? settings.cheatDayCalorieLimit : settings.dailyCalorieAllowance;
+  }
+  var consumed = sumMacroAll(eff, 'calories');
   var remainingToday = (target === null || target === undefined) ? null : (target - consumed);
   return {
-    isCheatDay: isCheatDay, target: target, consumed: consumed,
+    isCheatDay: isCheatDay, target: target, consumed: consumed, budget: budget,
     remainingToday: remainingToday,
     status: (remainingToday === null) ? {level:'GREEN', label:'On Track'} : computeDayStatus(remainingToday, target)
   };
@@ -1219,9 +1303,38 @@ function onFastFinishInputChange(value){
 }
 // Past-day plain time fields write into `draft` only; they're committed to
 // daysData[viewedDate].fast on Save, same as every other draft field.
+// v2.4.0: the Fasting page has its own date and past-day times save
+// straight away (once both are filled in, or both cleared).
+var fastViewedDate = null;
 function onDraftFastFieldChange(field, value){
-  draft[field] = value || '';
-  markDirty();
+  var sEl = document.getElementById('fastStartInput'), eEl = document.getElementById('fastFinishInput');
+  var st = sEl ? sEl.value : '', en = eEl ? eEl.value : '';
+  if(st && en){
+    var f = computeFastField(fastViewedDate, st, en);
+    writeFastRecord(fastViewedDate, f.startTime, f.endTime, f.crossedMidnight, f.durationHours);
+    showToast('Fast saved: ' + formatHM(f.durationHours*3600000));
+  } else if(!st && !en){
+    if(daysData[fastViewedDate] && daysData[fastViewedDate].fast){
+      delete daysData[fastViewedDate].fast;
+      saveJSON(DAYS_KEY, daysData);
+      showToast('Fast removed.');
+    }
+  }
+}
+function navFastDay(delta){
+  fastViewedDate = dateStr(addDays(parseDateStr(fastViewedDate || todayStr()), delta));
+  renderFastingTab();
+}
+function onFastDateNavInput(val){ if(!val) return; fastViewedDate = val; renderFastingTab(); }
+function renderFastingTab(){
+  var off = !settings.trackFasting;
+  document.getElementById('fastingNotTracked').style.display = off ? '' : 'none';
+  document.getElementById('fastingTabBody').style.display = off ? 'none' : '';
+  if(off) return;
+  if(!fastViewedDate) fastViewedDate = todayStr();
+  document.getElementById('fastDateNavInput').value = fastViewedDate;
+  document.getElementById('fastDateNavDayLabel').textContent = formatDisplayDateFull(fastViewedDate);
+  renderFastingCard();
 }
 
 function formatHM(ms){
@@ -1266,8 +1379,9 @@ function renderFastingCard(){
     return;
   }
   card.style.display = '';
-  var isToday = (viewedDate === todayStr());
-  var html = '<h3>Fasting Window</h3>';
+  if(!fastViewedDate) fastViewedDate = todayStr();
+  var isToday = (fastViewedDate === todayStr());
+  var html = '<h3>' + (isToday ? 'Today\'s fast' : 'Fast for this day') + '</h3>';
   if(isToday){
     html += '<div class="fasting-state neutral" id="fastingStateText">Loading...</div>';
     if(activeFast){
@@ -1280,11 +1394,12 @@ function renderFastingCard(){
     html += '<div class="form-row"><label for="fastFinishInput">Finish time</label><input type="time" id="fastFinishInput" value="" onchange="onFastFinishInputChange(this.value)"></div>';
     html += '<div class="hint-text">This app has no background/notification ability once closed on iOS &mdash; the fasting timer only updates while the app is open.</div>';
   } else {
-    var sv = draft.fastStartTime || '';
-    var ev = draft.fastEndTime || '';
+    var pf = (daysData[fastViewedDate] && daysData[fastViewedDate].fast) || {};
+    var sv = pf.startTime || '';
+    var ev = pf.endTime || '';
     html += '<div class="form-row"><label for="fastStartInput">Fast start time</label><input type="time" id="fastStartInput" value="'+escapeAttr(sv)+'" onchange="onDraftFastFieldChange(\'fastStartTime\',this.value)"></div>';
     html += '<div class="form-row"><label for="fastFinishInput">Fast finish time</label><input type="time" id="fastFinishInput" value="'+escapeAttr(ev)+'" onchange="onDraftFastFieldChange(\'fastEndTime\',this.value)"></div>';
-    html += '<div class="hint-text">Enter both times to record this day\'s completed fast, then Save. Leave both blank to remove it.</div>';
+    html += '<div class="hint-text">Enter both times to record this day\'s fast &mdash; it saves automatically. Clear both to remove it.</div>';
   }
   card.innerHTML = html;
   updateFastingStateText();
@@ -1358,7 +1473,8 @@ function saveWeightForDate(dstr, weightLb){
   renderWeightTab();
   // Today's own draft/hero doesn't depend on weight, but History's mini-badges
   // and the Today weight display (if ever re-added) should stay in sync.
-  if(weightLb !== null && dstr === todayStr()){ maybeOfferWeightSync(weightLb); }
+  // Weight changes the calorie target -- keep Today in step.
+  if(viewedDate) renderToday();
 }
 // Offers to refresh the profile weight (and therefore the maintenance-calorie
 // estimate) whenever TODAY's weight is logged and differs meaningfully from
@@ -1420,12 +1536,11 @@ function renderWeightTab(){
     var s = (weightLb !== null && weightLb !== undefined) ? lbToStone(weightLb) : {st:'', lb:''};
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" id="weightSt" placeholder="st" aria-label="Weight, stone" value="'+s.st+'" onchange="onWeightStLbChange()">' +
+      '<input type="number" inputmode="numeric" id="weightSt" placeholder="st" aria-label="Weight, stone" value="'+s.st+'" onkeydown="weightEnterKey(event)">' +
       '<span class="unit-lbl">st</span>' +
-      '<input type="number" id="weightLbPart" placeholder="lb" aria-label="Weight, pounds" value="'+s.lb+'" onchange="onWeightStLbChange()">' +
+      '<input type="number" inputmode="decimal" id="weightLbPart" placeholder="lb" aria-label="Weight, pounds" value="'+s.lb+'" onkeydown="weightEnterKey(event)">' +
       '<span class="unit-lbl">lb</span>' +
-      '<button class="btn-secondary" onclick="clearWeight()">Clear</button>' +
-      '</div>';
+      '</div>' + weightButtonsHtml(weightLb);
   } else {
     var display = '';
     if(weightLb !== null && weightLb !== undefined){
@@ -1433,23 +1548,47 @@ function renderWeightTab(){
     }
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" step="0.1" id="weightSingle" placeholder="'+unit+'" aria-label="Weight, '+unit+'" value="'+display+'" onchange="onWeightSingleChange()">' +
+      '<input type="number" inputmode="decimal" step="0.1" id="weightSingle" placeholder="'+unit+'" aria-label="Weight, '+unit+'" value="'+display+'" onkeydown="weightEnterKey(event)">' +
       '<span class="unit-lbl">'+unit+'</span>' +
-      '<button class="btn-secondary" onclick="clearWeight()">Clear</button>' +
-      '</div>';
+      '</div>' + weightButtonsHtml(weightLb);
   }
 }
-function onWeightStLbChange(){
-  var stEl = document.getElementById('weightSt'), lbEl = document.getElementById('weightLbPart');
-  var st = parseFloat(stEl.value), lb = parseFloat(lbEl.value);
-  if(isNaN(st) && isNaN(lb)){ saveWeightForDate(weightViewedDate, null); return; }
-  saveWeightForDate(weightViewedDate, (isNaN(st)?0:st)*LB_PER_STONE + (isNaN(lb)?0:lb));
+// v2.4.0 fix: typing in the stone/pound boxes no longer saves anything.
+// Nothing is saved until Confirm is pressed (or Enter/Go on the keyboard),
+// so "14" in the stone box can't be logged as 14 st 0 lb mid-entry.
+function weightButtonsHtml(weightLb){
+  var saved = (weightLb !== null && weightLb !== undefined)
+    ? '<div class="saved-note">Saved for this day: ' + formatWeightDisplay(weightLb, settings.weightUnit) + '</div>'
+    : '<div class="hint-text">No weight logged for this day.</div>';
+  return '<div class="confirm-row"><button class="btn-primary" onclick="confirmWeight()">Confirm weight</button>' +
+    '<button class="btn-secondary" onclick="clearWeight()">Clear</button></div>' + saved +
+    '<div class="hint-text">This weight sets your calorie target from this day until your next weigh-in.</div>';
 }
-function onWeightSingleChange(){
-  var el = document.getElementById('weightSingle');
-  var v = parseFloat(el.value);
-  if(isNaN(v)){ saveWeightForDate(weightViewedDate, null); return; }
-  saveWeightForDate(weightViewedDate, (settings.weightUnit === 'kg') ? v / LB_PER_KG : v);
+function weightEnterKey(ev){
+  if(ev.key === 'Enter'){ ev.preventDefault(); confirmWeight(); }
+}
+// Reads a stone+lb or single-unit pair of inputs. Returns {lb} or {error}.
+function readWeightInputs(stId, lbId, singleId){
+  if(settings.weightUnit === 'stlb'){
+    var st = parseNum(document.getElementById(stId).value), lb = parseNum(document.getElementById(lbId).value);
+    if(isNaN(st) && isNaN(lb)) return { error: 'Enter your weight first.' };
+    if(isNaN(st)) return { error: 'Enter the stone figure too (e.g. 14 st 11 lb).' };
+    if(!isNaN(lb) && (lb < 0 || lb >= 14)) return { error: 'Pounds should be between 0 and 13.' };
+    var total = st*LB_PER_STONE + (isNaN(lb)?0:lb);
+  } else {
+    var v = parseNum(document.getElementById(singleId).value);
+    if(isNaN(v)) return { error: 'Enter your weight first.' };
+    var total = (settings.weightUnit === 'kg') ? v / LB_PER_KG : v;
+  }
+  if(total < WEIGHT_LB_MIN || total > WEIGHT_LB_MAX) return { error: 'That weight looks out of range — please check it.' };
+  return { lb: total };
+}
+function confirmWeight(){
+  var r = readWeightInputs('weightSt','weightLbPart','weightSingle');
+  if(r.error){ showBanner(r.error, 'error'); return; }
+  if(document.activeElement) document.activeElement.blur();
+  saveWeightForDate(weightViewedDate, r.lb);
+  showToast('Weight saved: ' + formatWeightDisplay(r.lb, settings.weightUnit));
 }
 function clearWeight(){ saveWeightForDate(weightViewedDate, null); }
 
@@ -1530,30 +1669,32 @@ function loadDay(dstr){
   viewedDate = dstr;
   loadDraftForDate(dstr); // fresh from daysData, unless a live-draft backup for dstr exists (see above)
   resetAddForm();
-  renderToday();
+  renderCurrentDayViews();
 }
 
-function renderToday(){
-  document.getElementById('dateNavInput').value = viewedDate;
-  document.getElementById('dateNavDayLabel').textContent = formatDisplayDateFull(viewedDate);
-
-  var titleEl = document.getElementById('todayHeaderTitle');
-  var subEl = document.getElementById('todayHeaderSub');
+function viewedDayHeading(){
   var t = todayStr();
   var yest = dateStr(addDays(new Date(), -1));
-  var label;
-  if(viewedDate === t) label = 'Today';
-  else if(viewedDate === yest) label = 'Yesterday';
-  else label = formatDisplayDate(viewedDate);
-  titleEl.textContent = label;
-  titleEl.className = (viewedDate !== t) ? 'amber' : '';
-  subEl.textContent = (viewedDate === t) ? '' : formatDisplayDate(viewedDate);
-
+  if(viewedDate === t) return 'Today · ' + formatDisplayDate(viewedDate);
+  if(viewedDate === yest) return 'Yesterday · ' + formatDisplayDate(viewedDate);
+  return formatDisplayDateFull(viewedDate);
+}
+function renderToday(){
+  document.getElementById('dateNavInput').value = viewedDate;
+  var title = document.getElementById('dateNavDayLabel');
+  title.textContent = viewedDayHeading();
+  title.className = 'day-title' + (viewedDate !== todayStr() ? ' amber' : '');
   renderHero();
-  renderCheatDayCard();
-  renderFastingCard();
-  renderFoodLogList();
   renderMacroFieldVisibility();
+}
+function renderFoodTab(){
+  document.getElementById('foodDateNavInput').value = viewedDate;
+  document.getElementById('foodDateNavDayLabel').textContent = viewedDayHeading();
+  renderFoodLogList();
+}
+function renderCurrentDayViews(){
+  var active = document.querySelector('.tab-content.active');
+  if(active && active.id === 'tab-food') renderFoodTab(); else renderToday();
 }
 
 function renderHero(){
@@ -1582,30 +1723,26 @@ function renderHero(){
 
   var rounded = (ctx.remainingToday === null) ? null : Math.round(ctx.remainingToday);
   var cls = (rounded !== null && rounded < 0) ? 'hero-number negative' : 'hero-number';
-  var labelHtml = ctx.isCheatDay ? 'calories remaining today &mdash; your cheat day' : 'calories remaining today';
-  var warningHtml = '';
-  if(rounded !== null && rounded < 0){
-    warningHtml = '<div class="warning-text">You\'ve gone over your ' + (ctx.isCheatDay ? 'cheat-day limit' : 'daily allowance') + ' by ' + Math.abs(rounded) + ' calories.</div>';
+  var labelHtml = (rounded !== null && rounded < 0) ? 'calories over' : 'calories left to eat';
+  var shown = (rounded === null) ? '—' : Math.abs(rounded);
+  var targetHtml = '';
+  if(ctx.budget){
+    var b = ctx.budget;
+    targetHtml = 'Target ' + ctx.target + (ctx.isCheatDay ? ' (maintenance — cheat day)' : ' (maintenance ' + b.maintenance + ' − ' + getDeficit() + ')') +
+      '<br>Based on ' + formatWeightDisplay(b.weight.lb, settings.weightUnit) +
+      (b.weight.date === viewedDate ? ' logged this day' : (b.weight.date ? ' from ' + formatDisplayDate(b.weight.date) : ' from your profile'));
+  } else if(rounded === null){
+    targetHtml = 'Fill in your profile in Settings to get a calorie target.';
   }
+  var cheatOn = !!ctx.isCheatDay;
   heroCard.innerHTML =
-    '<div class="'+cls+'">'+(rounded===null?'—':rounded)+'</div>' +
+    '<div class="'+cls+'">'+shown+'</div>' +
     '<div class="hero-label">'+labelHtml+'</div>' +
-    (rounded!==null ? '<div class="badge '+ctx.status.level+'"><span class="dot"></span>'+ctx.status.label+'</div>' : '') +
-    warningHtml;
+    (targetHtml ? '<div class="hero-target">'+targetHtml+'</div>' : '') +
+    '<button class="cheat-btn'+(cheatOn?' on':'')+'" aria-pressed="'+cheatOn+'" onclick="toggleCheatDay()">Cheat Day'+(cheatOn?' ✓':'')+'</button>';
 }
+function toggleCheatDay(){ setCheatDay(!draft.isCheatDay); }
 
-function renderCheatDayCard(){
-  if(!settings.trackCalories) return;
-  var el = document.getElementById('cheatDayCard');
-  var html = '<h3>Cheat Day</h3>';
-  if(draft.isCheatDay){
-    html += '<div class="hint-text" style="margin-bottom:8px;">This day is marked as a cheat day (limit: ' + (settings.cheatDayCalorieLimit||0) + ' calories).</div>';
-    html += '<button class="btn-secondary btn-block" onclick="setCheatDay(false)">Unmark cheat day</button>';
-  } else {
-    html += '<button class="btn-secondary btn-block" onclick="setCheatDay(true)">Mark ' + getViewedDayLabelLower() + ' as a cheat day</button>';
-  }
-  el.innerHTML = html;
-}
 function getViewedDayLabelLower(){
   var t = todayStr();
   var yest = dateStr(addDays(new Date(), -1));
@@ -1613,7 +1750,7 @@ function getViewedDayLabelLower(){
   if(viewedDate === yest) return 'yesterday';
   return formatDisplayDate(viewedDate);
 }
-function setCheatDay(on){ draft.isCheatDay = !!on; markDirty(); renderToday(); }
+function setCheatDay(on){ draft.isCheatDay = !!on; markDirty(); renderHero(); }
 
 function renderMacroFieldVisibility(){
   document.querySelectorAll('.macro-field').forEach(function(elm){
@@ -1629,10 +1766,19 @@ function renderMacroFieldVisibility(){
 function renderFoodLogList(){
   var list = document.getElementById('foodLogList');
   var empty = document.getElementById('foodLogEmpty');
+  var totalsEl = document.getElementById('foodLogTotals');
   if(!draft.foodLog.length){
     list.innerHTML = '';
     empty.style.display = '';
+    if(totalsEl) totalsEl.innerHTML = '';
     return;
+  }
+  if(totalsEl){
+    var ctxT = computeDayContext(viewedDate);
+    totalsEl.innerHTML = settings.trackCalories
+      ? '<div class="totals-line"><span>Total eaten</span><span>'+Math.round(ctxT.consumed)+' cal</span></div>' +
+        (ctxT.remainingToday !== null ? '<div class="hint-text">'+(ctxT.remainingToday>=0 ? Math.round(ctxT.remainingToday)+' left of '+ctxT.target : Math.abs(Math.round(ctxT.remainingToday))+' over your '+ctxT.target+' target')+'</div>' : '')
+      : '';
   }
   empty.style.display = 'none';
   var html = '';
@@ -1670,16 +1816,13 @@ function updateFoodField(idx, field, value){
     entry._touched[field] = true;
   }
   markDirty();
-  renderHero();
-  renderCheatDayCard();
+  renderFoodLogList();
 }
 function deleteFoodRow(idx){
   if(!confirm('Delete this food entry?')) return;
   draft.foodLog.splice(idx,1);
   markDirty();
   renderFoodLogList();
-  renderHero();
-  renderCheatDayCard();
 }
 
 /* ---- Add Food form: autofill / highlight / touched tracking ---- */
@@ -1777,9 +1920,8 @@ function addFoodEntry(){
   draft.foodLog.push(entry);
   markDirty();
   resetAddForm();
-  renderFoodLogList();
   renderHero();
-  renderCheatDayCard();
+  showToast('Added: ' + item);
 }
 function parseNumOrNull(v){ var n = parseFloat(v); return isNaN(n) ? null : n; }
 
@@ -1804,8 +1946,12 @@ function updateFoodMemoryFromLog(foodLog){
   saveJSON(FOODMEM_KEY, foodMemory);
 }
 
-/* ---- Save Today ---- */
-function saveToday(){
+/* ---- Save (automatic) ---- */
+// Writes the current draft for viewedDate straight into daysData. Weight,
+// steps and the fast record are managed on their own pages and are always
+// carried over untouched.
+function commitDraft(){
+  if(!draft || !viewedDate) return;
   var existing = daysData[viewedDate];
   var nowIso = new Date().toISOString();
   var cleanFoodLog = draft.foodLog.map(function(e){
@@ -1818,51 +1964,18 @@ function saveToday(){
   var dayObj = {
     date: viewedDate,
     isCheatDay: !!draft.isCheatDay,
-    // Weight and Steps now live on their own tabs with immediate saves
-    // straight against daysData (see saveWeightForDate/saveStepsForDate) --
-    // carry those fields over from the existing record so a normal Save
-    // here (for food/fasting/cheat-day edits) never nulls them out.
     weightLb: existing ? existing.weightLb : null,
     steps: existing ? existing.steps : null,
     foodLog: cleanFoodLog,
     createdAt: existing ? existing.createdAt : nowIso,
     updatedAt: nowIso
   };
-  if(viewedDate === todayStr()){
-    // Today's fast record (if any) is managed live via Start/Stop Fast and is
-    // already written straight to daysData -- carry it over untouched so a
-    // normal Save (for food/weight edits) never clobbers or drops it.
-    if(existing && existing.fast) dayObj.fast = existing.fast;
-  } else {
-    // Past day: the fast record comes from the two plain time fields on the
-    // Fasting Window card and is only committed here, on Save.
-    var computedFast = computeFastField(viewedDate, draft.fastStartTime, draft.fastEndTime);
-    if(computedFast) dayObj.fast = computedFast;
-  }
+  if(existing && existing.fast) dayObj.fast = existing.fast;
   daysData[viewedDate] = dayObj;
   saveJSON(DAYS_KEY, daysData);
-
   updateFoodMemoryFromLog(draft.foodLog);
-
-  if(settings.trackCalories){
-    // "Well done" trigger: fire whenever the just-saved day's own remaining
-    // budget (Daily Allowance, or Cheat-Day Limit on a flagged day) is still
-    // >= 0.
-    var ctx = computeDayContext(viewedDate);
-    if(ctx.remainingToday !== null && ctx.remainingToday >= 0){
-      showBanner('Well done! You hit your target today.', 'success');
-    }
-  }
-
-  // Weight bracket/milestone checks now happen in saveWeightForDate(), since
-  // weight is no longer part of this draft/save cycle.
-
-  draft = buildDraftFromDay(daysData[viewedDate]);
-  isDirty = false; // just saved -- draft now matches what's persisted, nothing unsaved anymore
-  clearLiveDraft(); // the live-draft backup's job is done now that this is safely in daysData
-  renderToday();
-  showToast('Saved.');
 }
+function saveToday(){ commitDraft(); }
 
 /* =========================================================================
    HISTORY TAB
@@ -2072,18 +2185,15 @@ function renderSettings(){
   document.getElementById('settingWeightUnit').value = settings.weightUnit;
   document.getElementById('settingHeightUnit').value = settings.heightUnit;
   document.getElementById('settingFastingHours').value = settings.fastingWindowHours;
-  document.getElementById('settingDailyAllowance').value = (settings.dailyCalorieAllowance===null||settings.dailyCalorieAllowance===undefined) ? '' : settings.dailyCalorieAllowance;
-  document.getElementById('settingCheatDayLimit').value = (settings.cheatDayCalorieLimit===null||settings.cheatDayCalorieLimit===undefined) ? '' : settings.cheatDayCalorieLimit;
+  document.getElementById('settingDeficit').value = getDeficit();
+  renderBudgetReadout();
 
   document.getElementById('profileAge').value = (settings.profile.age===null||settings.profile.age===undefined) ? '' : settings.profile.age;
   document.getElementById('profileSex').value = settings.profile.sex || '';
   document.getElementById('profileActivity').value = settings.profile.activityLevel || '';
   renderProfileHeightInputs();
   renderProfileWeightInputs();
-  var estHint = 'No estimate yet -- fill in your profile and tap Recalculate Estimate.';
-  if(settings.maintenanceCaloriesEstimate !== null && settings.maintenanceCaloriesEstimate !== undefined){
-    estHint = 'Last estimate: ' + settings.maintenanceCaloriesEstimate + ' cal/day (population-average, +/-10% for most adults, adjustable anytime -- not medical advice).';
-  }
+  var estHint = 'Maintenance is a population-average estimate (Mifflin-St Jeor, about ±10% for most adults) — not medical advice.';
   document.getElementById('maintenanceEstimateHint').textContent = estHint;
 
   var startEl = document.getElementById('startingWeightHint');
@@ -2104,16 +2214,16 @@ function renderProfileHeightInputs(){
     var f = (cm!==null && cm!==undefined) ? cmToFtIn(cm) : {ft:'', inch:''};
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" id="profileHeightFt" placeholder="ft" aria-label="Height, feet" value="'+f.ft+'" onchange="onProfileHeightFtInChange()">' +
+      '<input type="number" id="profileHeightFt" placeholder="ft" aria-label="Height, feet" value="'+f.ft+'" >' +
       '<span class="unit-lbl">ft</span>' +
-      '<input type="number" id="profileHeightIn" placeholder="in" aria-label="Height, inches" value="'+f.inch+'" onchange="onProfileHeightFtInChange()">' +
+      '<input type="number" id="profileHeightIn" placeholder="in" aria-label="Height, inches" value="'+f.inch+'" >' +
       '<span class="unit-lbl">in</span>' +
       '</div>';
   } else {
     var display = (cm!==null && cm!==undefined) ? Math.round(cm) : '';
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" id="profileHeightCm" placeholder="cm" aria-label="Height, cm" value="'+display+'" onchange="onProfileHeightCmChange()">' +
+      '<input type="number" id="profileHeightCm" placeholder="cm" aria-label="Height, cm" value="'+display+'" >' +
       '<span class="unit-lbl">cm</span>' +
       '</div>';
   }
@@ -2138,9 +2248,9 @@ function renderProfileWeightInputs(){
     var s = (lb !== null && lb !== undefined) ? lbToStone(lb) : {st:'', lb:''};
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" id="profileWeightSt" placeholder="st" aria-label="Weight, stone" value="'+s.st+'" onchange="onProfileWeightStLbChange()">' +
+      '<input type="number" id="profileWeightSt" placeholder="st" aria-label="Weight, stone" value="'+s.st+'" >' +
       '<span class="unit-lbl">st</span>' +
-      '<input type="number" id="profileWeightLbPart" placeholder="lb" aria-label="Weight, pounds" value="'+s.lb+'" onchange="onProfileWeightStLbChange()">' +
+      '<input type="number" id="profileWeightLbPart" placeholder="lb" aria-label="Weight, pounds" value="'+s.lb+'" >' +
       '<span class="unit-lbl">lb</span>' +
       '</div>';
   } else {
@@ -2150,7 +2260,7 @@ function renderProfileWeightInputs(){
     }
     container.innerHTML =
       '<div class="weight-inputs">' +
-      '<input type="number" step="0.1" id="profileWeightSingle" placeholder="'+unit+'" aria-label="Weight, '+unit+'" value="'+display+'" onchange="onProfileWeightSingleChange()">' +
+      '<input type="number" step="0.1" id="profileWeightSingle" placeholder="'+unit+'" aria-label="Weight, '+unit+'" value="'+display+'" >' +
       '<span class="unit-lbl">'+unit+'</span>' +
       '</div>';
   }
@@ -2170,6 +2280,42 @@ function onProfileWeightSingleChange(){
 function updateProfileField(field, value){
   settings.profile[field] = value;
   saveJSON(SETTINGS_KEY, settings);
+  renderBudgetReadout();
+}
+function confirmProfileHeightWeight(){
+  var heightCm;
+  if(settings.heightUnit === 'ftin'){
+    var ft = parseNum(document.getElementById('profileHeightFt').value), inch = parseNum(document.getElementById('profileHeightIn').value);
+    if(isNaN(ft)){ showBanner('Enter your height in feet and inches.', 'error'); return; }
+    heightCm = ftInToCm(ft, isNaN(inch)?0:inch);
+  } else {
+    heightCm = parseNum(document.getElementById('profileHeightCm').value);
+    if(isNaN(heightCm)){ showBanner('Enter your height.', 'error'); return; }
+  }
+  if(heightCm < HEIGHT_CM_MIN || heightCm > HEIGHT_CM_MAX){ showBanner('That height looks out of range — please check it.', 'error'); return; }
+  var r = readWeightInputs('profileWeightSt','profileWeightLbPart','profileWeightSingle');
+  if(r.error){ showBanner(r.error, 'error'); return; }
+  settings.profile.heightCm = heightCm;
+  settings.profile.weightLb = r.lb;
+  saveJSON(SETTINGS_KEY, settings);
+  renderSettings();
+  showToast('Height & weight saved.');
+}
+function onDeficitChange(v){
+  var n = parseInt(v, 10);
+  if(isNaN(n) || n < 0 || n > 1500){ showBanner('Deficit should be between 0 and 1500 calories.', 'error'); renderSettings(); return; }
+  settings.calorieDeficit = n;
+  saveJSON(SETTINGS_KEY, settings);
+  renderBudgetReadout();
+  showToast('Deficit set to ' + n + ' cal.');
+}
+function renderBudgetReadout(){
+  var el = document.getElementById('budgetReadout');
+  if(!el) return;
+  var b = computeBudgetForDate(todayStr());
+  el.textContent = b
+    ? 'Today: maintenance ' + b.maintenance + ' cal · normal-day target ' + b.normalTarget + ' cal · cheat-day target ' + b.cheatTarget + ' cal'
+    : 'Complete your profile (age, sex, height, weight, activity) to calculate targets.';
 }
 function recalcMaintenanceEstimate(){
   var est = calcMaintenanceCalories(settings.profile);
@@ -2271,7 +2417,7 @@ function buildSummaryText(){
   lines.push('JP\'s Amazing Health Tracker — Summary (' + formatDisplayDate(t) + ')');
   if(settings.trackCalories){
     var ctx = computeDayContext(t);
-    var remainingLabel = ctx.isCheatDay ? 'cheat-day limit' : 'daily allowance';
+    var remainingLabel = ctx.isCheatDay ? 'cheat day' : 'normal day';
     if(ctx.remainingToday !== null){
       lines.push('Remaining today: ' + Math.round(ctx.remainingToday) + ' calories (' + remainingLabel + ', ' + ctx.status.label + ')');
     }
@@ -2513,7 +2659,8 @@ function completeOnboarding(){
   settings.profile.startingWeightLb = pendingProfile.weightLb;
   settings.maintenanceCaloriesEstimate = calcMaintenanceCalories(pendingProfile);
   settings.dailyCalorieAllowance = settings.maintenanceCaloriesEstimate;
-  settings.cheatDayCalorieLimit = Math.round(settings.dailyCalorieAllowance * 1.75);
+  settings.cheatDayCalorieLimit = settings.maintenanceCaloriesEstimate;
+  settings.dailyCalorieAllowance = settings.maintenanceCaloriesEstimate - getDeficit();
   settings.onboardingComplete = true;
   saveJSON(SETTINGS_KEY, settings);
   document.getElementById('onboardingOverlay').classList.remove('visible');
