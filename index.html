@@ -419,6 +419,10 @@
   <div class="card" id="weightNotTracked" style="display:none;">
     <div class="empty-state">Weight tracking is off &mdash; enable it in Settings.</div>
   </div>
+  <div class="card" id="fatLostCard">
+    <h3>Fat lost so far</h3>
+    <div id="fatLostBody"></div>
+  </div>
   <div id="weightTabBody">
     <div class="card">
       <div id="weightDateNavDayLabel" style="font-weight:600;font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;"></div>
@@ -662,7 +666,7 @@ var LB_PER_STONE = 14;
 // Bump this string whenever index.html is re-uploaded to GitHub Pages, so it's
 // possible to tell at a glance (topbar / onboarding / More tab) whether a
 // phone is showing the latest build or a stale cached copy.
-var APP_VERSION = '2.4.0 (2026-10-13)';
+var APP_VERSION = '2.5.0 (2026-10-14)';
 var LB_PER_KG = 0.45359237;
 var ACTIVITY_MULTIPLIERS = { sedentary:1.2, light:1.375, moderate:1.55, very:1.725, extra:1.9 };
 var CM_PER_INCH = 2.54;
@@ -1514,7 +1518,40 @@ function onWeightDateNavInput(val){
   weightViewedDate = val;
   renderWeightTab();
 }
+// Running total of calories under maintenance on finished days that have
+// food logged, converted at 3500 calories = 1 lb of fat. Today is left out
+// until it is over, and days with nothing logged are skipped (so a day you
+// forgot to log doesn't count as a full day of fasting).
+var CAL_PER_LB_FAT = 3500;
+function computeFatLost(){
+  var today = todayStr(), total = 0, days = 0;
+  for(var d in daysData){
+    var day = daysData[d];
+    if(!day || d >= today || !day.foodLog || !day.foodLog.length) continue;
+    var b = computeBudgetForDate(d);
+    if(!b) continue;
+    total += b.maintenance - sumMacroAll(day, 'calories');
+    days++;
+  }
+  return { totalCal: Math.round(total), days: days, lb: total / CAL_PER_LB_FAT };
+}
+function renderFatLost(){
+  var el = document.getElementById('fatLostBody'); if(!el) return;
+  var r = computeFatLost();
+  if(!r.days){
+    el.innerHTML = '<div class="hint-text">Nothing to show yet. Finished days with food logged will be added here.</div>';
+    return;
+  }
+  var lost = r.lb >= 0, absLb = Math.abs(r.lb);
+  var big = lost ? absLb : absLb;
+  var kg = Math.round(big*LB_PER_KG*10)/10;
+  el.innerHTML =
+    '<div class="hero-number" style="font-size:2.6rem;'+(lost?'':'color:var(--danger,#c0392b);')+'">' + (Math.round(big*10)/10) + ' lb</div>' +
+    '<div class="hero-label">' + (lost ? 'of fat lost' : 'of fat gained') + ' (' + kg + ' kg)</div>' +
+    '<div class="hint-text" style="margin-top:10px;">' + Math.abs(r.totalCal).toLocaleString() + ' calories ' + (lost ? 'under' : 'over') + ' maintenance across ' + r.days + ' finished day' + (r.days===1?'':'s') + '. Worked out as 3,500 calories = 1 lb of fat, so it is an estimate. Today is added once the day is over.</div>';
+}
 function renderWeightTab(){
+  renderFatLost();
   var notTracked = document.getElementById('weightNotTracked');
   var body = document.getElementById('weightTabBody');
   if(!settings.trackWeight){
@@ -1728,9 +1765,7 @@ function renderHero(){
   var targetHtml = '';
   if(ctx.budget){
     var b = ctx.budget;
-    targetHtml = 'Target ' + ctx.target + (ctx.isCheatDay ? ' (maintenance — cheat day)' : ' (maintenance ' + b.maintenance + ' − ' + getDeficit() + ')') +
-      '<br>Based on ' + formatWeightDisplay(b.weight.lb, settings.weightUnit) +
-      (b.weight.date === viewedDate ? ' logged this day' : (b.weight.date ? ' from ' + formatDisplayDate(b.weight.date) : ' from your profile'));
+    targetHtml = 'Target ' + ctx.target + (ctx.isCheatDay ? ' (maintenance — cheat day)' : ' (maintenance ' + b.maintenance + ' − ' + getDeficit() + ')');
   } else if(rounded === null){
     targetHtml = 'Fill in your profile in Settings to get a calorie target.';
   }
